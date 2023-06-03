@@ -1,0 +1,17 @@
+[package]
+name = "place-ipv6-server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+color-eyre = "0.6.2"
+clap = { version = "4.3.1", features = [ "derive" ] }
+
+tokio = { version = "1.28.2", features = [ "full" ] }
+futures-util = "0.3.28"
+async-fn-stream = "0.2.0"
+axum = "0.6.18"
