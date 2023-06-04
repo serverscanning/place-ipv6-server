@@ -4,28 +4,29 @@ mod ping_receiver;
 use canvas::CanvasState;
 
 use std::{
-    convert::Infallible,
     net::{IpAddr, SocketAddr},
     str::FromStr,
     sync::Arc,
     time::Duration,
 };
 
-use async_fn_stream::fn_stream;
 use axum::{
-    extract::State,
-    response::{
-        sse::{Event, KeepAlive},
-        Sse,
+    debug_handler,
+    extract::{
+        ws::{Message, WebSocket},
+        ConnectInfo, State, WebSocketUpgrade,
     },
+    response::Response,
     routing::get,
     Router,
 };
 
 use clap::Parser;
 use color_eyre::{eyre::Context, Result};
-use futures_util::Stream;
-use tower_http::{services::ServeDir, trace::TraceLayer};
+use tower_http::{
+    services::ServeDir,
+    trace::{DefaultMakeSpan, DefaultOnFailure, TraceLayer},
+};
 
 #[macro_use]
 extern crate tracing;
@@ -90,10 +91,14 @@ async fn main() -> Result<()> {
         })?;
 
     let app = Router::new()
-        .route("/events", get(events))
+        .route("/ws", get(get_ws))
         .fallback_service(ServeDir::new("./static"))
         .with_state(canvas_state)
-        .layer(TraceLayer::new_for_http());
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new())
+                .on_failure(DefaultOnFailure::new()),
+        );
     let webserver_addr = SocketAddr::new(
         IpAddr::from_str(&args.bind).context("Parsing ip to bind webserver to")?,
         args.port,
@@ -111,38 +116,64 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn events(
+#[debug_handler]
+async fn get_ws(
+    ws: WebSocketUpgrade,
     State(canvas_state): State<Arc<CanvasState>>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let stream = fn_stream(|emitter| async move {
-        /*let mut i = 0;
-        loop {
-            i += 1;
-            tokio::time::sleep(Duration::from_millis(1000)).await;
-            emitter
-                .emit(Ok(Event::default().event("i").data(i.to_string())))
-                .await;
-            if i > 10 {
-                break;
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> Response {
+    info!("HI");
+    ws.on_failed_upgrade(|err: axum::Error| info!("Failed upgrade: {err:?}"))
+        .on_upgrade(move |ws| on_websocket_upgrade(ws, canvas_state, addr))
+        .map(|f| {
+            info!("Resp: {:?}", f);
+            f
+        })
+}
+
+async fn on_websocket_upgrade(mut ws: WebSocket, canvas_state: Arc<CanvasState>, addr: SocketAddr) {
+    info!("AC");
+    if let Err(err) = websocket_connection(&mut ws, canvas_state, addr).await {
+        warn!("Websocket: Connection to {addr} failed: {err}");
+        ws.close().await.ok();
+    }
+}
+
+async fn websocket_connection(
+    ws: &mut WebSocket,
+    canvas_state: Arc<CanvasState>,
+    addr: SocketAddr,
+) -> Result<()> {
+    info!("Websocket: {addr} connected");
+    let mut delta_canvas_receiver = canvas_state.read_encoded_delta_canvas().await.subscribe();
+    ws.send(Message::Binary(
+        canvas_state.read_encoded_full_canvas().await.get_encoded(),
+    ))
+    .await?;
+
+    loop {
+        tokio::select! {
+            encoded_delta_canvas_res = delta_canvas_receiver.recv() => {
+                ws.send(Message::Binary(encoded_delta_canvas_res.context("Receive encoded delta canvas")?)).await.context("Send encoded delta canvas")?;
             }
-        }*/
-        let encoded_canvas = canvas_state.read_encoded_canvas().await;
-        emitter
-            .emit(Ok(Event::default()
-                .event("canvas_image")
-                .data(encoded_canvas.get_encoded_data())))
-            .await;
-        let mut event_receiver = encoded_canvas.subscribe();
-        drop(encoded_canvas);
+            maybe_ws_message_res = ws.recv() => {
+                if maybe_ws_message_res.is_none() {
+                    info!("Websocket: {addr} closed connection");
+                    return Ok(())
+                }
+                let ws_message = maybe_ws_message_res.unwrap().context("Websocket message")?;
 
-        while let Ok(encoded_data) = event_receiver.recv().await {
-            emitter
-                .emit(Ok(Event::default()
-                    .event("canvas_image")
-                    .data(encoded_data)))
-                .await;
+                match ws_message {
+                    Message::Text(_text) => {
+                        // TODO: Allow requesting a full canvas frame
+                        //       This is to allow js to stop processing the delta canvases
+                        //       if the tab is hidden and use the full canvas to get the
+                        //       current state again.
+                        info!("Websocket: Got a text message from {addr}")
+                    }
+                    _ => {}
+                }
+            }
         }
-    });
-
-    Sse::new(stream).keep_alive(KeepAlive::default())
+    }
 }

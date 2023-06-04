@@ -29,7 +29,15 @@ function subscribeToCanvas() {
         setTimeout(subscribeToCanvas, 3000);
         evtSource.close();
     };
-    evtSource.addEventListener("canvas_image", (event) => {
+    evtSource.addEventListener("delta_canvas_image", (event) => {
+        if (!document.hidden) {
+            canvasImgEl.setAttribute("src", event.data);
+        } else {
+            pendingImageUpdate = event.data;
+            //console.log("Saving update for later because tab is hidden!");
+        }
+    });
+    evtSource.addEventListener("full_canvas_image", (event) => {
         if (!document.hidden) {
             canvasImgEl.setAttribute("src", event.data);
         } else {

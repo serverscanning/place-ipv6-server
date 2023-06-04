@@ -1,5 +1,5 @@
 use color_eyre::Result;
-use image::{DynamicImage, Rgb};
+use image::{DynamicImage, Rgb, Rgba};
 use mac_address::MacAddress;
 use std::{
     io::{Cursor, Read},
@@ -303,7 +303,8 @@ pub fn run_pixel_processor(
     min_update_interval: Duration,
 ) -> Result<()> {
     let mut canvas = DynamicImage::ImageRgb8(image::RgbImage::from_pixel(512, 512, Rgb([0xFF; 3])));
-    canvas_state.blocking_update_canvas(&canvas)?;
+    canvas_state.blocking_update_full_canvas(&canvas)?;
+    let mut delta_canvas = DynamicImage::new_rgba8(512, 512);
 
     info!("Ping-Processor started. Listening for Pixel updates to update and encode canvas...");
 
@@ -330,6 +331,16 @@ pub fn run_pixel_processor(
                             y as u32,
                             pixel_info.color,
                         );
+                        delta_canvas.as_mut_rgba8().unwrap().put_pixel(
+                            x as u32,
+                            y as u32,
+                            Rgba([
+                                pixel_info.color.0[0],
+                                pixel_info.color.0[1],
+                                pixel_info.color.0[2],
+                                0xFF,
+                            ]),
+                        );
                     }
                 }
                 pending_update = true;
@@ -339,7 +350,9 @@ pub fn run_pixel_processor(
 
         if pending_update && last_updated_at.elapsed() >= min_update_interval {
             //let start = Instant::now();
-            canvas_state.blocking_update_canvas(&canvas)?;
+            canvas_state.blocking_update_full_canvas(&canvas)?;
+            canvas_state.blocking_update_delta_canvas(&delta_canvas)?;
+            delta_canvas = DynamicImage::new_rgba8(512, 512);
             //debug!("Encoded and updated canvas in {:?}.", start.elapsed());
             last_updated_at = Instant::now();
             pending_update = false;

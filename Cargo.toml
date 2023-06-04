@@ -14,13 +14,13 @@ color-eyre = "0.6.2"
 clap = { version = "4.3.1", features = [ "derive" ] }
 clap-num = "1.0.2"
 image = "0.24.6"
-base64 = "0.21.2"
 
 # Webserver & Async stuff
 tokio = { version = "1.28.2", features = [ "full" ] }
 futures-util = "0.3.28"
 async-fn-stream = "0.2.0"
-axum = "0.6.18"
+axum = { version = "0.6.18", features = [ "ws", "macros" ] }
+hyper = { version = "*", features = [ "full" ] }
 tower-http = { version = "0.4.0", features = [ "fs", "trace" ] }
 
 # Network sniffing / Ping receiving
