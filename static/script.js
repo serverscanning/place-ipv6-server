@@ -1,4 +1,18 @@
 document.addEventListener("DOMContentLoaded", subscribeToCanvas);
+document.addEventListener("DOMContentLoaded", subscribeToTabBecomingVisible);
+
+let pendingImageUpdate = null;
+
+function subscribeToTabBecomingVisible() {
+    const canvasImgEl = document.getElementById("canvas-img");
+    document.addEventListener("visibilitychange", (event) => {
+        if (document.visibilityState === "visible" && pendingImageUpdate !== null) {
+            canvasImgEl.setAttribute("src", pendingImageUpdate);
+            pendingImageUpdate = null;
+            console.log("Updated to pending image update because tab became visible again!");
+        }
+    });
+}
 
 function subscribeToCanvas() {
     const canvasImgEl = document.getElementById("canvas-img");
@@ -16,6 +30,11 @@ function subscribeToCanvas() {
         evtSource.close();
     };
     evtSource.addEventListener("canvas_image", (event) => {
-        canvasImgEl.setAttribute("src", event.data);
+        if (!document.hidden) {
+            canvasImgEl.setAttribute("src", event.data);
+        } else {
+            pendingImageUpdate = event.data;
+            //console.log("Saving update for later because tab is hidden!");
+        }
     });
 }

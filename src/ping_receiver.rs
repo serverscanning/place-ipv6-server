@@ -4,7 +4,10 @@ use mac_address::MacAddress;
 use std::{
     io::{Cursor, Read},
     net::Ipv6Addr,
-    sync::Arc,
+    sync::{
+        mpsc::{Receiver, Sender},
+        Arc,
+    },
     time::{Duration, Instant},
 };
 
@@ -147,8 +150,9 @@ pub fn make_ipv6_pseudo_header(
 pub fn check_for_icmpv6_ping(
     data: &[u8],
     is_ethernet: bool,
+    require_valid_icmpv6_checksum: bool,
 ) -> Result<Option<(Option<EthernetInfo>, IpInfo)>> {
-    //tracing::debug!("PACKET: {:x?}", data);
+    //debug!("PACKET: {:x?}", data);
     let mut reader = Cursor::new(data);
 
     // Ethernet header
@@ -163,7 +167,7 @@ pub fn check_for_icmpv6_ping(
         reader.read_exact(&mut next_header)?;
         if next_header[0] != 0x86 || next_header[1] != 0xdd {
             // Next header is not an IPv6 packet!
-            /*tracing::debug!(
+            /*debug!(
                 "Fault: Ethernet: Not an IPv6 packet (got: {:02x}, {:02x}, expected: 0x86, 0xdd)",
                 next_header[0],
                 next_header[1]
@@ -181,7 +185,7 @@ pub fn check_for_icmpv6_ping(
     reader.read_exact(&mut ip_header[..1])?;
     if ip_header[0] != 0x60 {
         // This is most likely an IPv4 packet, not IPv6!
-        /*tracing::debug!(
+        /*debug!(
             "Fault: IP: Not an IPv6 packet (got: {:02x}, expected: 0x60)",
             ip_header[0]
         );*/
@@ -192,7 +196,7 @@ pub fn check_for_icmpv6_ping(
     // ip_header[1..3] are something with traffic classes
     if ip_header[6] != 0x3a {
         // "Next header" is not indicating an ICMPv6 packet. We don't care about Non-ICMP packets!
-        //tracing::debug!("Fault: Next header is not ICMPv6");
+        //debug!("Fault: Next header is not ICMPv6");
         return Ok(None);
     }
     // ip_header[7] is the hop limit
@@ -223,7 +227,7 @@ pub fn check_for_icmpv6_ping(
 
     if payload_length < 8 {
         // The ICMPv6 Packet is smaller than the smallest ping possible!
-        //tracing::debug!("Fault: ICMPv6 Header too small");
+        //debug!("Fault: ICMPv6 Header too small");
         return Ok(None);
     }
 
@@ -238,84 +242,107 @@ pub fn check_for_icmpv6_ping(
     //let icmp_identifier: u16 = ((icmp_packet[4] as u16) << 8) | ((icmp_packet[5] & 0xFF) as u16);
     //let icmp_sequence: u16 = ((icmp_packet[6] as u16) << 8) | ((icmp_packet[7] & 0xFF) as u16);
 
-    // Zero out checksum for checksum calc
-    icmp_packet[2] = 0x00;
-    icmp_packet[3] = 0x00;
-    let expected_icmp_checksum = icmpv6_checksum(src_ip, dest_ip, &icmp_packet);
-    if expected_icmp_checksum != icmp_checksum {
-        // Wrong checksum!
-        /*tracing::debug!(
-            "Fault: Wrong checksum (expected: {:04x}, got: {:04x})",
-            expected_icmp_checksum,
-            icmp_checksum
-        );*/
-        return Ok(None);
+    if require_valid_icmpv6_checksum {
+        // Zero out checksum for checksum calc
+        icmp_packet[2] = 0x00;
+        icmp_packet[3] = 0x00;
+        let expected_icmp_checksum = icmpv6_checksum(src_ip, dest_ip, &icmp_packet);
+        if expected_icmp_checksum != icmp_checksum {
+            // Wrong checksum!
+            /*debug!(
+                "Fault: Wrong checksum (expected: {:04x}, got: {:04x})",
+                expected_icmp_checksum,
+                icmp_checksum
+            );*/
+            return Ok(None);
+        }
     }
 
     Ok(Some((ethernet_info, ip_info)))
 }
 
-pub fn start_listener(canvas_state: Arc<CanvasState>) -> Result<()> {
-    let iface_name = "enp34s0";
-    let lib = rawsock::open_best_library().unwrap();
-    let mut iface = lib.open_interface(iface_name).unwrap();
+pub fn run_pixel_receiver(
+    iface_name: &str,
+    require_valid_icmpv6_checksum: bool,
+    pixel_sender: Sender<PixelInfo>,
+) -> Result<()> {
+    let lib = rawsock::open_best_library()?;
+    let mut iface = lib.open_interface(iface_name)?;
     iface.set_filter("icmp6")?;
     let is_ethernet = match iface.data_link() {
         rawsock::DataLink::Ethernet => true,
         _ => false,
     };
 
+    info!(
+        "Ping-Receiver started. Listening for icmpv6 packets on {iface_name} using {}...",
+        lib.version().to_string().trim()
+    );
+
+    iface.loop_infinite_dyn(&|packet| {
+        let res = check_for_icmpv6_ping(&packet, is_ethernet, require_valid_icmpv6_checksum);
+        match res {
+            Ok(Some((_ethernet_info, ip_info))) => {
+                //info!("Got ping from {} to {}", ip_info.src_ip, ip_info.dest_ip);
+                let pixel_info: Option<PixelInfo> = from_addr(ip_info.dest_ip);
+                if let Some(pixel_info) = pixel_info {
+                    pixel_sender.send(pixel_info).ok();
+                }
+            }
+            _ => {}
+        }
+    })?;
+    Err(color_eyre::eyre::eyre!(
+        "Infinite loop ended unexpectedly (something must have went wrong)"
+    ))
+}
+
+pub fn run_pixel_processor(
+    pixel_receiver: Receiver<PixelInfo>,
+    canvas_state: Arc<CanvasState>,
+    min_update_interval: Duration,
+) -> Result<()> {
     let mut canvas = DynamicImage::ImageRgb8(image::RgbImage::from_pixel(512, 512, Rgb([0xFF; 3])));
     canvas_state.blocking_update_canvas(&canvas)?;
+
+    info!("Ping-Processor started. Listening for Pixel updates to update and encode canvas...");
+
     let mut pending_update = false;
     let mut last_updated_at = Instant::now();
 
-    // TODO: Use loop_infinite_dyn to prevent losing pings when processing one!
-    while let Ok(packet) = iface.receive() {
-        let res = check_for_icmpv6_ping(&packet, is_ethernet);
-        match res {
-            Ok(Some((_ethernet_info, ip_info))) => {
-                //tracing::info!("Got ping from {} to {}", ip_info.src_ip, ip_info.dest_ip);
-                let pixel_info: Option<PixelInfo> = from_addr(ip_info.dest_ip);
-                if let Some(pixel_info) = pixel_info {
-                    //tracing::info!("Pixel: {:?}", pixel_info);
-                    for x_offset in 0..(pixel_info.size as u16) {
-                        let x = pixel_info.pos.x + x_offset;
-                        if x >= 512 {
+    let recv_timeout = min_update_interval / 2;
+    loop {
+        match pixel_receiver.recv_timeout(recv_timeout) {
+            Ok(pixel_info) => {
+                for x_offset in 0..(pixel_info.size as u16) {
+                    let x = pixel_info.pos.x + x_offset;
+                    if x >= 512 {
+                        break;
+                    }
+                    for y_offset in 0..(pixel_info.size as u16) {
+                        let y = pixel_info.pos.y + y_offset;
+                        if y >= 512 {
                             break;
                         }
-                        for y_offset in 0..(pixel_info.size as u16) {
-                            let y = pixel_info.pos.y + y_offset;
-                            if y >= 512 {
-                                break;
-                            }
 
-                            canvas.as_mut_rgb8().unwrap().put_pixel(
-                                x as u32,
-                                y as u32,
-                                pixel_info.color,
-                            );
-                        }
+                        canvas.as_mut_rgb8().unwrap().put_pixel(
+                            x as u32,
+                            y as u32,
+                            pixel_info.color,
+                        );
                     }
-                    pending_update = true;
-                } else {
-                    //tracing::info!("Failed to get pixel info from {}", ip_info.dest_ip);
                 }
+                pending_update = true;
             }
-            Ok(None) => {
-                //tracing::info!("Got some packet, but it was faulty in some way!");
-            }
-            Err(_err) => {
-                //tracing::error!("Failed to receive a packet: {err:#}")
-            }
+            Err(_err) => {} // Timeout hit
         }
 
-        if pending_update && last_updated_at.elapsed() >= Duration::from_millis(50) {
-            // TOOD: Rate limit this call better!
+        if pending_update && last_updated_at.elapsed() >= min_update_interval {
+            //let start = Instant::now();
             canvas_state.blocking_update_canvas(&canvas)?;
+            //debug!("Encoded and updated canvas in {:?}.", start.elapsed());
             last_updated_at = Instant::now();
             pending_update = false;
         }
     }
-    Ok(())
 }

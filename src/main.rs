@@ -3,7 +3,13 @@ mod ping_receiver;
 
 use canvas::CanvasState;
 
-use std::{convert::Infallible, sync::Arc};
+use std::{
+    convert::Infallible,
+    net::{IpAddr, SocketAddr},
+    str::FromStr,
+    sync::Arc,
+    time::Duration,
+};
 
 use async_fn_stream::fn_stream;
 use axum::{
@@ -16,21 +22,70 @@ use axum::{
     Router,
 };
 
-use color_eyre::Result;
+use clap::Parser;
+use color_eyre::{eyre::Context, Result};
 use futures_util::Stream;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 
+#[macro_use]
+extern crate tracing;
+
+fn max_canvas_fps_range(s: &str) -> std::result::Result<u16, String> {
+    clap_num::number_range(s, 1, 1000)
+}
+
+#[derive(Parser)]
+struct Args {
+    /// Name of the interface on which to sniff on for pings
+    interface: String,
+
+    /// How often the canvas is allowed to update per second max.
+    #[arg(short = 'f', long, value_parser=max_canvas_fps_range, default_value = "10")]
+    max_canvas_fps: u16,
+
+    /// Require valid imcpv6 ping checksums in oder to accept pixel updates.
+    #[arg(short, long, action)]
+    require_valid_checksum: bool,
+
+    /// What address the webserver should bind to
+    #[arg(short, long, default_value = "::")]
+    bind: String,
+
+    /// What port the webserver should bind to
+    #[arg(short, long, default_value = "8080")]
+    port: u16,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    let args = Args::parse();
     tracing_subscriber::fmt::init();
 
     let canvas_state = Arc::new(CanvasState::default());
     let canvas_state_clone = canvas_state.clone();
+    let (pixel_sender, pixel_receiver) = std::sync::mpsc::channel();
     std::thread::Builder::new()
-        .name("Ping-Receiver".to_owned())
-        .spawn(|| {
-            if let Err(err) = ping_receiver::start_listener(canvas_state_clone) {
-                tracing::error!("Ping-Receiver crashed: {err:#}");
+        .name("Pixel-Recveiver".to_owned())
+        .spawn(move || {
+            if let Err(err) = ping_receiver::run_pixel_receiver(
+                &args.interface,
+                args.require_valid_checksum,
+                pixel_sender,
+            ) {
+                error!("Pixel-Receiver crashed: {err:#}");
+                std::process::exit(1);
+            }
+        })?;
+    std::thread::Builder::new()
+        .name("Pixel-Processor".to_owned())
+        .spawn(move || {
+            if let Err(err) = ping_receiver::run_pixel_processor(
+                pixel_receiver,
+                canvas_state_clone,
+                Duration::from_nanos(1_000_000_000 / args.max_canvas_fps as u64),
+            ) {
+                error!("Pixel-Processor crashed: {err:#}");
+                std::process::exit(1);
             }
         })?;
 
@@ -39,11 +94,18 @@ async fn main() -> Result<()> {
         .fallback_service(ServeDir::new("./static"))
         .with_state(canvas_state)
         .layer(TraceLayer::new_for_http());
-    tracing::debug!("Created app. Starting server on port 8080...");
+    let webserver_addr = SocketAddr::new(
+        IpAddr::from_str(&args.bind).context("Parsing ip to bind webserver to")?,
+        args.port,
+    );
 
-    tokio::task::spawn(async move {});
+    info!(
+        "Starting webserver on {} port {}...",
+        webserver_addr.ip(),
+        webserver_addr.port()
+    );
 
-    axum::Server::bind(&"[::]:8080".parse()?)
+    axum::Server::bind(&webserver_addr)
         .serve(app.into_make_service())
         .await?;
     Ok(())
