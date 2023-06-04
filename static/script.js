@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", subscribeToCanvas);
-document.addEventListener("DOMContentLoaded", subscribeToTabBecomingVisible);
+//document.addEventListener("DOMContentLoaded", subscribeToTabBecomingVisible);
 
+/*
 let pendingImageUpdate = null;
 
 function subscribeToTabBecomingVisible() {
@@ -12,37 +13,39 @@ function subscribeToTabBecomingVisible() {
             console.log("Updated to pending image update because tab became visible again!");
         }
     });
-}
+}*/
 
 function subscribeToCanvas() {
-    const canvasImgEl = document.getElementById("canvas-img");
+    const canvasEl = document.getElementById("canvas");
+    const canvasCtx = canvasEl.getContext("2d");
     const canvasStatusEl = document.getElementById("canvas-status");
 
-    const evtSource = new EventSource("events");
+    console.log("Websocket: Connecting...");
     canvasStatusEl.innerText = "Connecting...";
 
-    evtSource.onopen = (event) => {
+    const ws = new WebSocket((document.location.protocol === "https:" ? "wss://" : "ws://") + document.location.host + "/ws");
+    ws.binaryType = "blob";
+    ws.onopen = (event) => {
+        console.log("Websocket: Connected");
         canvasStatusEl.innerText = "Connected";
     };
-    evtSource.onerror = (event) => {
-        canvasStatusEl.innerText = "Error. Attempting to reconnect in 3s...";
-        setTimeout(subscribeToCanvas, 3000);
-        evtSource.close();
+
+    let didError = false;
+    ws.onerror = (event) => {
+        console.log("Websocket: Error!");
+        didError = true;
+        ws.close();
     };
-    evtSource.addEventListener("delta_canvas_image", (event) => {
-        if (!document.hidden) {
-            canvasImgEl.setAttribute("src", event.data);
-        } else {
-            pendingImageUpdate = event.data;
-            //console.log("Saving update for later because tab is hidden!");
-        }
-    });
-    evtSource.addEventListener("full_canvas_image", (event) => {
-        if (!document.hidden) {
-            canvasImgEl.setAttribute("src", event.data);
-        } else {
-            pendingImageUpdate = event.data;
-            //console.log("Saving update for later because tab is hidden!");
-        }
-    });
+
+    ws.onclose = (event) => {
+        console.log("Websocket: Closed. Reconnecting in 3s...");
+        canvasStatusEl.innerText = (didError ? "Error!" : "Lost connection!") + " Attempting to reconnect in 3s...";
+        setTimeout(subscribeToCanvas, 3000);
+    }
+
+    ws.onmessage = async (event) => {
+        if (!(event.data instanceof Blob)) return; // Receiving text is not supported rn (pps later?)
+        let imageBitmap = await createImageBitmap(event.data);
+        canvasCtx.drawImage(imageBitmap, 0, 0);
+    }
 }
