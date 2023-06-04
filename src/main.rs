@@ -11,7 +11,6 @@ use std::{
 };
 
 use axum::{
-    debug_handler,
     extract::{
         ws::{Message, WebSocket},
         ConnectInfo, State, WebSocketUpgrade,
@@ -111,28 +110,20 @@ async fn main() -> Result<()> {
     );
 
     axum::Server::bind(&webserver_addr)
-        .serve(app.into_make_service())
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await?;
     Ok(())
 }
 
-#[debug_handler]
 async fn get_ws(
     ws: WebSocketUpgrade,
     State(canvas_state): State<Arc<CanvasState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> Response {
-    info!("HI");
-    ws.on_failed_upgrade(|err: axum::Error| info!("Failed upgrade: {err:?}"))
-        .on_upgrade(move |ws| on_websocket_upgrade(ws, canvas_state, addr))
-        .map(|f| {
-            info!("Resp: {:?}", f);
-            f
-        })
+    ws.on_upgrade(move |ws| on_websocket_upgrade(ws, canvas_state, addr))
 }
 
 async fn on_websocket_upgrade(mut ws: WebSocket, canvas_state: Arc<CanvasState>, addr: SocketAddr) {
-    info!("AC");
     if let Err(err) = websocket_connection(&mut ws, canvas_state, addr).await {
         warn!("Websocket: Connection to {addr} failed: {err}");
         ws.close().await.ok();
