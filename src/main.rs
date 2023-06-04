@@ -19,9 +19,9 @@ use axum::{
     routing::get,
     Router,
 };
-
 use clap::Parser;
 use color_eyre::{eyre::Context, Result};
+use serde::Deserialize;
 use tower_http::{
     services::ServeDir,
     trace::{DefaultMakeSpan, DefaultOnFailure, TraceLayer},
@@ -130,6 +130,13 @@ async fn on_websocket_upgrade(mut ws: WebSocket, canvas_state: Arc<CanvasState>,
     }
 }
 
+#[derive(Deserialize)]
+#[serde(tag = "request", rename_all = "snake_case")]
+enum WsRequest {
+    GetFullCanvasOnce,
+    DeltaCanvasStream { enabled: bool },
+}
+
 async fn websocket_connection(
     ws: &mut WebSocket,
     canvas_state: Arc<CanvasState>,
@@ -137,15 +144,15 @@ async fn websocket_connection(
 ) -> Result<()> {
     info!("Websocket: {addr} connected");
     let mut delta_canvas_receiver = canvas_state.read_encoded_delta_canvas().await.subscribe();
-    ws.send(Message::Binary(
-        canvas_state.read_encoded_full_canvas().await.get_encoded(),
-    ))
-    .await?;
+
+    let mut delta_canvas_stream_enabled = false;
 
     loop {
         tokio::select! {
             encoded_delta_canvas_res = delta_canvas_receiver.recv() => {
-                ws.send(Message::Binary(encoded_delta_canvas_res.context("Receive encoded delta canvas")?)).await.context("Send encoded delta canvas")?;
+                if delta_canvas_stream_enabled {
+                    ws.send(Message::Binary(encoded_delta_canvas_res.context("Receive encoded delta canvas")?)).await.context("Send encoded delta canvas")?;
+                }
             }
             maybe_ws_message_res = ws.recv() => {
                 if maybe_ws_message_res.is_none() {
@@ -155,12 +162,21 @@ async fn websocket_connection(
                 let ws_message = maybe_ws_message_res.unwrap().context("Websocket message")?;
 
                 match ws_message {
-                    Message::Text(_text) => {
-                        // TODO: Allow requesting a full canvas frame
-                        //       This is to allow js to stop processing the delta canvases
-                        //       if the tab is hidden and use the full canvas to get the
-                        //       current state again.
-                        info!("Websocket: Got a text message from {addr}")
+                    Message::Text(text) => {
+                        let request: WsRequest = serde_json::from_str(&text).context("Parsing received text as WsRequest")?;
+                        match request {
+                            WsRequest::GetFullCanvasOnce => {
+                                debug!("Websocket: {addr} requested a full canvas frame");
+                                ws.send(Message::Binary(
+                                        canvas_state.read_encoded_full_canvas().await.get_encoded(),
+                                ))
+                                .await?;
+                            },
+                            WsRequest::DeltaCanvasStream { enabled } => {
+                                delta_canvas_stream_enabled = enabled;
+                                debug!("Websocket: {addr} {} delta canvas frames", if enabled { "enabled" } else { "disabled" })
+                            },
+                        }
                     }
                     _ => {}
                 }
