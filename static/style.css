@@ -1,3 +1,108 @@
+:root {
+    --primary-color: #00f6ff;
+    --text-primary-color: #a7fcff;
+    --text-second-color: #a7fcff;
+    --text-ipv6-prefix-color: #a7fcff;
+    --text-ipv6-size-color: #fffba7;
+    --text-ipv6-x-color: #ffa7ef;
+    --text-ipv6-y-color: #b8a7ff;
+    --text-ipv6-red-color: #ffa7af;
+    --text-ipv6-green-color: #b3ffa7;
+    --text-ipv6-blue-color: #a7b2ff;
+    --text-muted-color: #007c81dd;
+    --bg-color: #004b4e;
+}
+
 body {
-    background-color: #f0f0f0;
+    /*background-color: var(--bg-color);*/
+    background: radial-gradient(circle, #222 0%, var(--bg-color) 100%);
+}
+
+p {
+    color: var(--text-primary-color);
+    margin: 5px 0;
+}
+
+h1 {
+    /*text-decoration: underline;*/
+    text-align: center;
+}
+
+h1, h2, h3, h4, h5 {
+    font-family: sans-serif;
+    color: var(--primary-color);
+}
+
+h1 {
+    margin: 5px 0;
+}
+
+h3 {
+    margin: 2px 0;
+}
+
+a {
+    color: inherit;
+}
+
+#container {
+    margin: 0 auto;
+    max-width: 920px;
+}
+
+#canvas-container {
+    margin: 0 auto;
+    margin-top: 24px;
+    max-width: 512px;
+}
+
+#canvas {
+    display: block;
+    border-radius: 2px;
+    /*box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);*/
+    box-shadow: 0px 0px 16px var(--primary-color);
+}
+
+#canvas-status {
+    font-style: italic;
+    margin-top: 5px;
+    font-size: 9pt;
+    color: var(--text-muted-color);
+    float: right;
+}
+
+#ipv6-prefix:hover, #ipv6-size:hover, #ipv6-coords:hover, #ipv6-colors:hover, #ipv6-more:hover {
+    border-bottom: dotted 2px var(--text-muted-color);
+}
+
+#ipv6-prefix {
+    color: var(--text-ipv6-prefix-color);
+}
+
+#ipv6-size {
+    color: var(--text-ipv6-size-color);
+}
+#ipv6-coords-x {
+    color: var(--text-ipv6-x-color);
+}
+
+#ipv6-coords-y {
+    color: var(--text-ipv6-y-color);
+}
+
+#ipv6-colors-red {
+    color: var(--text-ipv6-red-color);
+}
+
+#ipv6-colors-green {
+    color: var(--text-ipv6-green-color);
+}
+
+#ipv6-colors-blue {
+    color: var(--text-ipv6-blue-color);
+}
+
+#ipv6 > #ipv6-prefix:hover ~ #ipv6-more {
+    color: var(--text-muted-color) !important;
+    text-decoration: underline;
 }
