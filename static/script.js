@@ -1,40 +1,52 @@
 document.addEventListener("DOMContentLoaded", subscribeToCanvas);
-document.addEventListener("DOMContentLoaded", subscribeToTabBecomingVisible);
-
-let pendingImageUpdate = null;
-
-function subscribeToTabBecomingVisible() {
-    const canvasImgEl = document.getElementById("canvas-img");
-    document.addEventListener("visibilitychange", (event) => {
-        if (document.visibilityState === "visible" && pendingImageUpdate !== null) {
-            canvasImgEl.setAttribute("src", pendingImageUpdate);
-            pendingImageUpdate = null;
-            console.log("Updated to pending image update because tab became visible again!");
-        }
-    });
-}
 
 function subscribeToCanvas() {
-    const canvasImgEl = document.getElementById("canvas-img");
+    const canvasEl = document.getElementById("canvas");
+    const canvasCtx = canvasEl.getContext("2d");
     const canvasStatusEl = document.getElementById("canvas-status");
 
-    const evtSource = new EventSource("events");
+    console.log("Websocket: Connecting...");
     canvasStatusEl.innerText = "Connecting...";
 
-    evtSource.onopen = (event) => {
+    const ws = new WebSocket((document.location.protocol === "https:" ? "wss://" : "ws://") + document.location.host + "/ws");
+    ws.binaryType = "blob";
+    ws.onopen = (event) => {
+        console.log("Websocket: Connected");
         canvasStatusEl.innerText = "Connected";
+
+        ws.send(JSON.stringify({ request: "delta_canvas_stream", enabled: true }));
+        ws.send(JSON.stringify({ request: "get_full_canvas_once" }));
     };
-    evtSource.onerror = (event) => {
-        canvasStatusEl.innerText = "Error. Attempting to reconnect in 3s...";
-        setTimeout(subscribeToCanvas, 3000);
-        evtSource.close();
-    };
-    evtSource.addEventListener("canvas_image", (event) => {
-        if (!document.hidden) {
-            canvasImgEl.setAttribute("src", event.data);
+
+    const visibilityChangeHandler = (event) => {
+        if (document.visibilityState === "visible") {
+            ws.send(JSON.stringify({ request: "delta_canvas_stream", enabled: true }));
+            ws.send(JSON.stringify({ request: "get_full_canvas_once" }));
+            console.log("Document became visible again. Enabled receiving delta frames again and requested a full canvas.");
         } else {
-            pendingImageUpdate = event.data;
-            //console.log("Saving update for later because tab is hidden!");
+            ws.send(JSON.stringify({ request: "delta_canvas_stream", enabled: false }));
+            console.log("Document invisible. Disabled receiving delta frame updates.");
         }
-    });
+    };
+    document.addEventListener("visibilitychange", visibilityChangeHandler);
+
+    let didError = false;
+    ws.onerror = (event) => {
+        console.log("Websocket: Error!");
+        didError = true;
+        ws.close();
+    };
+
+    ws.onclose = (event) => {
+        document.removeEventListener("visibilitychange", visibilityChangeHandler);
+        console.log("Websocket: Closed. Reconnecting in 3s...");
+        canvasStatusEl.innerText = (didError ? "Error!" : "Lost connection!") + " Attempting to reconnect in 3s...";
+        setTimeout(subscribeToCanvas, 3000);
+    }
+
+    ws.onmessage = async (event) => {
+        if (!(event.data instanceof Blob)) return; // Receiving text is not supported rn (pps later?)
+        let imageBitmap = await createImageBitmap(event.data);
+        canvasCtx.drawImage(imageBitmap, 0, 0);
+    }
 }
