@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::{collections::VecDeque, io::Cursor};
 
 use color_eyre::{eyre::ensure, Result};
 use image::{codecs::png::PngEncoder, DynamicImage, GenericImageView, ImageEncoder};
@@ -11,6 +11,7 @@ pub struct CanvasState {
     /// Base64 of png, starting with "data:image/png;base64," to denote this
     encoded_full_canvas: RwLock<EncodedCanvas>,
     encoded_delta_canvas: RwLock<EncodedCanvas>,
+    pps_publisher: Sender<usize>,
 }
 
 impl CanvasState {
@@ -37,6 +38,14 @@ impl CanvasState {
         );
         self.encoded_delta_canvas.blocking_write().update(canvas)
     }
+
+    pub fn update_pps(&self, pps: usize) {
+        self.pps_publisher.send(pps).ok();
+    }
+
+    pub fn subscribe_to_pps(&self) -> Receiver<usize> {
+        self.pps_publisher.subscribe()
+    }
 }
 
 impl Default for CanvasState {
@@ -48,6 +57,7 @@ impl Default for CanvasState {
             encoded_delta_canvas: RwLock::new(
                 EncodedCanvas::new(&DynamicImage::new_rgba8(512, 512)).unwrap(),
             ),
+            pps_publisher: tokio::sync::broadcast::channel(64).0,
         }
     }
 }

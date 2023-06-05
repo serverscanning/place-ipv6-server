@@ -311,10 +311,25 @@ pub fn run_pixel_processor(
     let mut pending_update = false;
     let mut last_updated_at = Instant::now();
 
+    let mut pps_counter_reset_at = Instant::now();
+    let mut pps_counter: usize = 0;
+
     let recv_timeout = min_update_interval / 2;
     loop {
-        match pixel_receiver.recv_timeout(recv_timeout) {
+        let recv_result = pixel_receiver.recv_timeout(recv_timeout);
+        let now = Instant::now();
+
+        if now - pps_counter_reset_at >= Duration::from_secs(1) {
+            // Could be better, but good enough for now
+            pps_counter_reset_at = Instant::now();
+            canvas_state.update_pps(pps_counter);
+            pps_counter = 0;
+        }
+
+        match recv_result {
             Ok(pixel_info) => {
+                pps_counter += 1;
+
                 for x_offset in 0..(pixel_info.size as u16) {
                     let x = pixel_info.pos.x + x_offset;
                     if x >= 512 {
@@ -348,13 +363,13 @@ pub fn run_pixel_processor(
             Err(_err) => {} // Timeout hit
         }
 
-        if pending_update && last_updated_at.elapsed() >= min_update_interval {
+        if pending_update && now - last_updated_at >= min_update_interval {
             //let start = Instant::now();
             canvas_state.blocking_update_full_canvas(&canvas)?;
             canvas_state.blocking_update_delta_canvas(&delta_canvas)?;
             delta_canvas = DynamicImage::new_rgba8(512, 512);
             //debug!("Encoded and updated canvas in {:?}.", start.elapsed());
-            last_updated_at = Instant::now();
+            last_updated_at = now;
             pending_update = false;
         }
     }

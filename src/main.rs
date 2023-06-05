@@ -22,7 +22,7 @@ use axum::{
 };
 use clap::Parser;
 use color_eyre::{eyre::Context, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tower_http::{
     services::ServeDir,
     trace::{DefaultMakeSpan, DefaultOnFailure, TraceLayer},
@@ -139,11 +139,20 @@ async fn on_websocket_upgrade(mut ws: WebSocket, canvas_state: Arc<CanvasState>,
     }
 }
 
+/// Client -> Server
 #[derive(Deserialize)]
 #[serde(tag = "request", rename_all = "snake_case")]
 enum WsRequest {
     GetFullCanvasOnce,
     DeltaCanvasStream { enabled: bool },
+    PpsUpdates { enabled: bool },
+}
+
+/// Server -> Client
+#[derive(Serialize)]
+#[serde(tag = "message", rename_all = "snake_case")]
+enum WsMessage {
+    PpsUpdate { pps: usize },
 }
 
 async fn websocket_connection(
@@ -153,14 +162,22 @@ async fn websocket_connection(
 ) -> Result<()> {
     info!("Websocket: {addr} connected");
     let mut delta_canvas_receiver = canvas_state.read_encoded_delta_canvas().await.subscribe();
+    let mut pps_receiver = canvas_state.subscribe_to_pps();
 
     let mut delta_canvas_stream_enabled = false;
+    let mut pps_updates_enabled = false;
 
     loop {
         tokio::select! {
             encoded_delta_canvas_res = delta_canvas_receiver.recv() => {
                 if delta_canvas_stream_enabled {
                     ws.send(Message::Binary(encoded_delta_canvas_res.context("Receive encoded delta canvas")?)).await.context("Send encoded delta canvas")?;
+                }
+            }
+            pps_res = pps_receiver.recv() => {
+                if pps_updates_enabled {
+                    let message = WsMessage::PpsUpdate { pps: pps_res.context("Receive pps update")? };
+                    ws.send(Message::Text(serde_json::to_string(&message).context("Encode pps update")?)).await.context("Send pps update")?;
                 }
             }
             maybe_ws_message_res = ws.recv() => {
@@ -184,6 +201,10 @@ async fn websocket_connection(
                             WsRequest::DeltaCanvasStream { enabled } => {
                                 delta_canvas_stream_enabled = enabled;
                                 debug!("Websocket: {addr} {} delta canvas frames", if enabled { "enabled" } else { "disabled" })
+                            },
+                            WsRequest::PpsUpdates { enabled } => {
+                                pps_updates_enabled = enabled;
+                                debug!("Websocket: {addr} {} pps updates", if enabled { "enabled" } else { "disabled" })
                             },
                         }
                     }
