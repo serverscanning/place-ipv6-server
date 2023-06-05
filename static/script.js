@@ -1,16 +1,4 @@
 document.addEventListener("DOMContentLoaded", subscribeToCanvas);
-//document.addEventListener("DOMContentLoaded", subscribeToTabBecomingVisible);
-
-function subscribeToTabBecomingVisible() {
-    const canvasImgEl = document.getElementById("canvas-img");
-    document.addEventListener("visibilitychange", (event) => {
-        if (document.visibilityState === "visible" && pendingImageUpdate !== null) {
-            canvasImgEl.setAttribute("src", pendingImageUpdate);
-            pendingImageUpdate = null;
-            console.log("Updated to pending image update because tab became visible again!");
-        }
-    });
-}
 
 function subscribeToCanvas() {
     const canvasEl = document.getElementById("canvas");
