@@ -61,7 +61,7 @@ function subscribeToCanvas() {
                 while (ppsEntries.length > 10) ppsEntries.splice(0, 1);
                 let maxPps = 0;
                 for (const pps of ppsEntries) if (pps > maxPps) maxPps = pps;
-                canvasPpsEl.innerText = "PPS (current / max in last 30s): " + formatNumber(wsMessage.pps, digits(maxPps)) + " / " + formatNumber(maxPps, 0);
+                canvasPpsEl.innerText = "PPS (current / max): " + formatNumber(wsMessage.pps, digits(maxPps)) + " / " + formatNumber(maxPps, 0);
             }
         } else {
             console.error("Received invalid type ws data: " + typeof (event.data));
