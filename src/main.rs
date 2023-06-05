@@ -15,7 +15,8 @@ use axum::{
         ws::{Message, WebSocket},
         ConnectInfo, State, WebSocketUpgrade,
     },
-    response::Response,
+    http::header,
+    response::{AppendHeaders, IntoResponse, Response},
     routing::get,
     Router,
 };
@@ -91,6 +92,7 @@ async fn main() -> Result<()> {
 
     let app = Router::new()
         .route("/ws", get(get_ws))
+        .route("/canvas.png", get(get_canvas))
         .fallback_service(ServeDir::new("./static"))
         .with_state(canvas_state)
         .layer(
@@ -113,6 +115,13 @@ async fn main() -> Result<()> {
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await?;
     Ok(())
+}
+
+async fn get_canvas(State(canvas_state): State<Arc<CanvasState>>) -> impl IntoResponse {
+    (
+        AppendHeaders([(header::CONTENT_TYPE, "image/png")]),
+        canvas_state.read_encoded_full_canvas().await.get_encoded(),
+    )
 }
 
 async fn get_ws(
