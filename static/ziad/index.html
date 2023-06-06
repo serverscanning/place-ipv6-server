@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel='stylesheet' href='styles.css' />
+    <title>Place IPv6 | </title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div id="container">
+        <div id="main">
+            <h1>Place: IPv6v2 (EnderKill98's Rust rewrite of Alula's Rust rewrite)</h1>
+            <p>Place down pixels on the canvas by pinging the below IP:</p>
+            <h2>2a01:4f8:c012:f8e6:<span class="c-yellow">S</span><span class="c-cyan">XXX</span>:<span
+                    class="c-cyan">YYY</span>:<span class="c-red">RR</span>:<span class="c-green">GG</span><span
+                    class="c-blue">BB</span></h2>
+            <p>where XXX and YYY are coordinates, in hex numbers, from 0 to 512, S is either 1 or 2 (for 1x1 or 2x2
+                pixels respectively), whereas RRGGBB make up a hex color.
+            </p>
+            <div id="cont">
+                <canvas id="cvs" width="512" height="512"></canvas>
+            </div>
+            <p><a href="https://discord.gg/2Um4vsS5Dc" target="_blank">Join our Discord</a> ~ originally very dumb thing by <a
+                    href="//ziad87.net">ziad87</a> ~ Now Hosted by <a href="https://github.com/EnderKill98" target="_blank">EnderKill98</a> Open Source Here: <a href="https://github.com/serverscanning/place-ipv6-server/" target="_blank">On github</a></p>
+
+            <div id="phackerstyle">
+                <canvas id="c6"></canvas>
+                <div id="pps"></div>
+            </div>
+        </div>
+    </div>
+    <div id="warn">
+        <div id="warn-inner" style="border: 2px solid black;">
+            <h1>Explicit Content Warning</h1>
+            <p>The contents of this canvas are entirely unmoderated.</p>
+            <p>It may contain something offensive or pornographic.</p>
+            <input type="button" class="click" value="I understand ☛" onclick="changeSeenDisclaimer()">
+        </div>
+    </div>
+    <script>
+        function changeSeenDisclaimer() {
+            localStorage.setItem("accepted_explicit", true);
+            document.getElementById('warn').style.display = "none";
+            document.getElementById('main').style.display = "block";
+            run();
+        }
+        console.log("Start")
+
+        function run() {
+            document.addEventListener("DOMContentLoaded", subscribeToCanvas);
+
+            function subscribeToCanvas() {
+                console.log("Let's Go...")
+                const canvasEl = document.getElementById("cvs");
+                const canvasCtx = canvasEl.getContext("2d");
+                console.log("Websocket: Connecting...");
+
+                const ws = new WebSocket("ws://ek98.casper.wf/ws");
+                ws.binaryType = "blob";
+                ws.onopen = (event) => {
+                    console.log("Websocket: Connected");
+
+                    ws.send(JSON.stringify({
+                        request: "delta_canvas_stream",
+                        enabled: true
+                    }));
+                    ws.send(JSON.stringify({
+                        request: "get_full_canvas_once"
+                    }));
+                    ws.send(JSON.stringify({
+                        request: "pps_updates",
+                        enabled: true
+                    }));
+                };
+
+                const visibilityChangeHandler = (event) => {
+                    if (document.visibilityState === "visible") {
+                        ws.send(JSON.stringify({
+                            request: "delta_canvas_stream",
+                            enabled: true
+                        }));
+                        ws.send(JSON.stringify({
+                            request: "get_full_canvas_once"
+                        }));
+                        console.log("Document became visible again. Enabled receiving delta frames again and requested a full canvas.");
+                    } else {
+                        ws.send(JSON.stringify({
+                            request: "delta_canvas_stream",
+                            enabled: false
+                        }));
+                        console.log("Document invisible. Disabled receiving delta frame updates.");
+                    }
+                };
+                document.addEventListener("visibilitychange", visibilityChangeHandler);
+
+                let didError = false;
+                ws.onerror = (event) => {
+                    console.log("Websocket: Error!");
+                    didError = true;
+                    ws.close();
+                };
+
+                ws.onclose = (event) => {
+                    document.removeEventListener("visibilitychange", visibilityChangeHandler);
+                    console.log("Websocket: Closed. Reconnecting in 3s...");
+                    setTimeout(subscribeToCanvas, 3000);
+                };
+
+                let ppsEntries = [];
+
+                const canvasPpsEl = document.getElementById("pps");
+
+                ws.onmessage = async (event) => {
+                    if (event.data instanceof Blob) {
+                        let imageBitmap = await createImageBitmap(event.data);
+                        canvasCtx.drawImage(imageBitmap, 0, 0);
+                    } else if (typeof(event.data) === "string") {
+                        let wsMessage = JSON.parse(event.data);
+                        if (wsMessage.message === "pps_update") {
+                            ppsEntries.push(wsMessage.pps);
+                            while (ppsEntries.length > 10) ppsEntries.splice(0, 1);
+                            let maxPps = 0;
+                            for (const pps of ppsEntries)
+                                if (pps > maxPps) maxPps = pps;
+                            canvasPpsEl.innerHTML = '<span id="pps"> PPS (current / max): </br>' + formatNumber(wsMessage.pps, digits(maxPps)) + " / " + formatNumber(maxPps, 0) + "</span>";
+                        }
+                    } else {
+                        console.error("Received invalid type ws data: " + typeof(event.data));
+                    }
+                }
+
+                const ppsCanvas = document.getElementById("ppsCanvas");
+                const ppsCtx = ppsCanvas.getContext("2d");
+                let maxAmt = 0;
+
+
+                function connectWS() {
+                    // mainWS = new WebSocket("ws://" + location.hostname + "/ws");
+                    mainWS = new WebSocket("ws://ek92.casper.wf/ws");
+                    mainWS.onmessage = (data) => {
+                        if (data.data instanceof Blob) {
+                            onBinaryMessage(data.data);
+                        } else {
+                            let d = JSON.parse(data.data);
+                            let amt = d.evt;
+                            if (amt > maxVal) maxVal = amt;
+                            if (amt > maxAmt) maxAmt = amt;
+                            ppsEntries.push(amt);
+                            if (ppsEntries.length > 900) ppsEntries.shift();
+                            ppsGraph();
+                        }
+                    };
+                    mainWS.onclose = () => {
+                        setTimeout(connectWS, 1000);
+                    };
+                }
+
+                function start() {
+                    document.getElementById("warning").style.display = "none";
+                    connectWS();
+                }
+                    function start() {
+                        document.getElementById('warn').style.display = "none";
+                        document.getElementById('main').style.display = "block";
+                        connectWS();
+                    }
+
+                    start();
+                }
+                console.log("Whoops?")
+            }
+
+            function digits(number) {
+                return Math.floor(Math.log10(number) + 1);
+            }
+
+            function formatNumber(number, padToMinDigits) {
+                let numberStrRev = (number + "").split("").reverse().join("");
+                while (numberStrRev.length < padToMinDigits) numberStrRev += "0";
+                let newNumberStrRev = "";
+                for (const i in numberStrRev) {
+                    if (i > 0 && i % 3 == 0) newNumberStrRev += ",";
+                    newNumberStrRev += numberStrRev[i];
+                }
+                return newNumberStrRev.split("").reverse().join("");
+            }
+
+
+            if (localStorage["accepted_explicit"]) {
+                document.getElementById('warn').style.display = "none";
+                document.getElementById('main').style.display = "block";
+                run();
+            } else {
+                console("You've seen the disclaimer or have screwed up")
+            }
+    </script>
+</body>
+
+</html>
