@@ -1,0 +1,160 @@
+* {
+  font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
+    "Lucida Sans Unicode", Geneva, Verdana, sans-serif;
+  image-rendering: pixelated;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: white;
+}
+
+#main {
+  margin: auto;
+  padding: 10px;
+  text-align: center;
+  max-width: 900px;
+}
+
+#container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  background: linear-gradient(#111, #222);
+}
+
+#warn {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#warn-inner {
+  background: linear-gradient(#300, #400);
+  max-width: 500px;
+  padding: 10px 20px;
+  text-align: center;
+}
+
+.c-yellow {
+  color: #ffa;
+}
+
+.c-cyan {
+  color: #0ff;
+}
+
+.c-red {
+  color: #faa;
+}
+
+.c-green {
+  color: #afa;
+}
+
+.c-blue {
+  color: #aaf;
+}
+
+h1,
+h2,
+h4 {
+  font-weight: normal;
+}
+
+p,
+h1,
+h2,
+h4 {
+  margin: 5px;
+}
+
+a,
+a:visited {
+  color: #ccf;
+}
+
+#cvs {
+  border: 2px solid black;
+  box-shadow: 3px 3px #000;
+}
+
+#phackerstyle {
+  margin-top: 20px;
+  position: relative;
+  overflow: hidden;
+  height: 80px;
+}
+
+#phackerstyle div {
+  color: white;
+  width: 400px;
+  height: 80px;
+  background: linear-gradient(90deg, #000 0%, #000 15%, #0000 30%, #0000 100%);
+  top: 0px;
+  left: 0px;
+  display: flex;
+  position: absolute;
+}
+
+#phackerstyle div span {
+  display: block;
+  padding: 10px;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  font-size: 14px;
+  text-align: left;
+}
+
+#phackerstyle canvas {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  border: none;
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    color: black;
+  }
+
+  #container {
+    background: linear-gradient(#c7e0da, rgb(131, 177, 169));
+  }
+  
+  #warn-inner {
+    background: linear-gradient(#faa, #fbb);
+  }
+
+  a,
+  a:visited {
+    color: #22a;
+  }
+
+  .c-yellow {
+    color: #f80;
+  }
+
+  .c-cyan {
+    color: #088;
+  }
+
+  .c-red {
+    color: #f00;
+  }
+
+  .c-green {
+    color: #090;
+  }
+
+  .c-blue {
+    color: #00f;
+  }
+}
