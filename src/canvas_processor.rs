@@ -1,3 +1,8 @@
+//! Maintains the canvas state and receives Pixel Updates
+//! (information extracted from valid Ping Dest IPv6 Addresses)
+//! which update this state.
+//! Als sends updates in specified interval to all subscribers.
+
 use color_eyre::Result;
 use image::{DynamicImage, Rgb, Rgba};
 use std::{
