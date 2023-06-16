@@ -1,3 +1,5 @@
+//! Canvas State struct and update/subscribe logic as well as encoding the canvas to a PNG binary.
+
 use std::io::Cursor;
 
 use color_eyre::{eyre::ensure, Result};

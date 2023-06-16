@@ -1,3 +1,5 @@
+//! Defines CLI Arguments, help texts, etc.
+
 use clap::Parser;
 
 fn max_canvas_fps_range(s: &str) -> Result<u16, String> {

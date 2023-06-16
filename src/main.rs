@@ -1,3 +1,5 @@
+//! Main method (obviously), most of webserver routes and kicking off other threads.
+
 mod canvas;
 mod canvas_processor;
 mod cli_args;

@@ -1,3 +1,5 @@
+//! Sniffs on the network and parsing ICMPv6 ping packets to pass along to canvas_processor.rs
+
 use color_eyre::Result;
 use std::{
     io::{Cursor, Read},
