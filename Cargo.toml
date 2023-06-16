@@ -15,14 +15,14 @@ codegen-units = 1
 [dependencies]
 # Basics
 tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.17", features = [ "env-filter" ] }
 color-eyre = "0.6.2"
 clap = { version = "4.3.1", features = [ "derive" ] }
 clap-num = "1.0.2"
 image = "0.24.6"
 
 # Webserver & Async stuff
-tokio = { version = "1.28.2", features = [ "full" ] }
+tokio = { version = "1.28.2", features = [ "macros", "rt-multi-thread" ] }
 futures-util = "0.3.28"
 async-fn-stream = "0.2.0"
 axum = { version = "0.6.18", features = [ "ws" ] }
