@@ -37,6 +37,11 @@ extern crate tracing;
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = CliArgs::parse();
+
+    if std::env::var("RUST_LOG").is_err() {
+        // Set default logging level if none specified using the environment variable "RUST_LOG"
+        std::env::set_var("RUST_LOG", "debug,hyper=info")
+    }
     tracing_subscriber::fmt::init();
 
     let canvas_state = Arc::new(CanvasState::default());
