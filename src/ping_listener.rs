@@ -1,31 +1,13 @@
 use color_eyre::Result;
-use image::{DynamicImage, Rgb, Rgba};
-use mac_address::MacAddress;
 use std::{
     io::{Cursor, Read},
     net::Ipv6Addr,
-    sync::{
-        mpsc::{Receiver, Sender},
-        Arc,
-    },
-    time::{Duration, Instant},
+    sync::mpsc::Sender,
 };
 
-use crate::canvas::CanvasState;
+use crate::canvas_processor::PixelInfo;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Size {
-    SinglePixel = 1,
-    Area2x2 = 2,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Pos {
-    pub x: u16,
-    pub y: u16,
-}
-
+/// Source and destination IP of a ping
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IpInfo {
     pub src_ip: Ipv6Addr,
@@ -38,61 +20,32 @@ impl IpInfo {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EthernetInfo {
-    pub src_mac: MacAddress,
-    pub dest_mac: MacAddress,
+/// Create a pseudo IPv6 Header.
+/// It is used to calculate the checksum of an ICMPv6 packet
+pub fn make_ipv6_pseudo_header(
+    src_ip: Ipv6Addr,
+    dest_ip: Ipv6Addr,
+    icmp_packet_len: u16,
+) -> Vec<u8> {
+    let mut data = Vec::new();
+    src_ip.octets().into_iter().for_each(|byte| data.push(byte)); // Source Address
+    dest_ip
+        .octets()
+        .into_iter()
+        .for_each(|byte| data.push(byte)); // Destination Address
+
+    data.push((icmp_packet_len >> 8) as u8);
+    data.push((icmp_packet_len & 0xFF) as u8);
+
+    data.push(0x00);
+    data.push(0x00);
+    data.push(0x00);
+    data.push(0x3a); // Next header: ICMPv6 (58)
+    data
 }
 
-impl EthernetInfo {
-    pub fn new(src_mac: MacAddress, dest_mac: MacAddress) -> Self {
-        Self { src_mac, dest_mac }
-    }
-}
-
-#[derive(Debug)]
-pub struct PixelInfo {
-    pos: Pos,
-    color: Rgb<u8>,
-    size: Size,
-}
-
-pub fn from_addr(ip_addr: Ipv6Addr) -> Option<PixelInfo> {
-    /*Ipv6Addr::new(
-        0x2602,
-        0xfa9b,
-        0x202,
-        pos.x | ((size as u16) << 12),
-        pos.y,
-        color.red as u16,
-        color.green as u16,
-        color.blue as u16,
-    )*/
-
-    let segments = ip_addr.segments();
-    let size = (segments[4] & 0xf000) >> 12;
-    let x = segments[4] & 0x0fff;
-    let y = segments[5] & 0x0fff;
-    let red = (segments[6] & 0x00ff) as u8;
-    let green = ((segments[7] & 0xff00) >> 8) as u8;
-    let blue = (segments[7] & 0x00ff) as u8;
-
-    let size = match size {
-        1 => Size::SinglePixel,
-        2 => Size::Area2x2,
-        _ => return None,
-    };
-    if x >= 512 || y >= 512 {
-        return None;
-    }
-    Some(PixelInfo {
-        pos: Pos { x, y },
-        color: Rgb([red, green, blue]),
-        size,
-    })
-}
-
-// https://datatracker.ietf.org/doc/html/rfc1071
+/// Calculate the checksum of an ICMPv6 packet
+/// See: https://datatracker.ietf.org/doc/html/rfc1071
 pub fn icmpv6_checksum(src_ip: Ipv6Addr, dest_ip: Ipv6Addr, icmpv6_packet: &[u8]) -> u16 {
     let mut data = make_ipv6_pseudo_header(src_ip, dest_ip, icmpv6_packet.len() as u16);
     icmpv6_packet.iter().for_each(|byte| data.push(*byte));
@@ -125,43 +78,21 @@ pub fn icmpv6_checksum(src_ip: Ipv6Addr, dest_ip: Ipv6Addr, icmpv6_packet: &[u8]
     return !(total as u16);
 }
 
-pub fn make_ipv6_pseudo_header(
-    src_ip: Ipv6Addr,
-    dest_ip: Ipv6Addr,
-    icmp_packet_len: u16,
-) -> Vec<u8> {
-    let mut data = Vec::new();
-    src_ip.octets().into_iter().for_each(|byte| data.push(byte)); // Source Address
-    dest_ip
-        .octets()
-        .into_iter()
-        .for_each(|byte| data.push(byte)); // Destination Address
-
-    data.push((icmp_packet_len >> 8) as u8);
-    data.push((icmp_packet_len & 0xFF) as u8);
-
-    data.push(0x00);
-    data.push(0x00);
-    data.push(0x00);
-    data.push(0x3a); // Next header: ICMPv6 (58)
-    data
-}
-
+/// Analysze a packet, check if it is a valid IPv6 Ping and extract some information from it
+/// Returns Ok(None) if packet is not a valid IPv6 ping packet.
 pub fn check_for_icmpv6_ping(
     data: &[u8],
     is_ethernet: bool,
     require_valid_icmpv6_checksum: bool,
-) -> Result<Option<(Option<EthernetInfo>, IpInfo)>> {
+) -> Result<Option<IpInfo>> {
     //debug!("PACKET: {:x?}", data);
     let mut reader = Cursor::new(data);
 
     // Ethernet header
-    let ethernet_info = if is_ethernet {
+    if is_ethernet {
         let mut mac_buf = [0u8; 6];
-        reader.read_exact(&mut mac_buf)?;
-        let dest_mac = MacAddress::new(mac_buf);
-        reader.read_exact(&mut mac_buf)?;
-        let src_mac = MacAddress::new(mac_buf);
+        reader.read_exact(&mut mac_buf)?; // Dest Mac Addr
+        reader.read_exact(&mut mac_buf)?; // Src Mac Addr
 
         let mut next_header = [0u8; 2];
         reader.read_exact(&mut next_header)?;
@@ -174,11 +105,7 @@ pub fn check_for_icmpv6_ping(
             );*/
             return Ok(None);
         }
-
-        Some(EthernetInfo::new(src_mac, dest_mac))
-    } else {
-        None
-    };
+    }
 
     // IPv6 Header
     let mut ip_header = [0u8; 8 + 16 + 16];
@@ -258,10 +185,13 @@ pub fn check_for_icmpv6_ping(
         }
     }
 
-    Ok(Some((ethernet_info, ip_info)))
+    Ok(Some(ip_info))
 }
 
-pub fn run_pixel_receiver(
+/// Listen for icmpv6 packets on a given interface and pass on valid pings
+/// as PixelInfo to pixel_sender.
+/// Requires admin/root or the capability CAP_NET_RAW (linux)
+pub fn run_ping_listener(
     iface_name: &str,
     require_valid_icmpv6_checksum: bool,
     pixel_sender: Sender<PixelInfo>,
@@ -275,16 +205,16 @@ pub fn run_pixel_receiver(
     };
 
     info!(
-        "Ping-Receiver started. Listening for icmpv6 packets on {iface_name} using {}...",
+        "Started. Listening for IPv6 pings on {iface_name} using {}...",
         lib.version().to_string().trim()
     );
 
     iface.loop_infinite_dyn(&|packet| {
         let res = check_for_icmpv6_ping(&packet, is_ethernet, require_valid_icmpv6_checksum);
         match res {
-            Ok(Some((_ethernet_info, ip_info))) => {
+            Ok(Some(ip_info)) => {
                 //info!("Got ping from {} to {}", ip_info.src_ip, ip_info.dest_ip);
-                let pixel_info: Option<PixelInfo> = from_addr(ip_info.dest_ip);
+                let pixel_info: Option<PixelInfo> = PixelInfo::from_addr(ip_info.dest_ip);
                 if let Some(pixel_info) = pixel_info {
                     pixel_sender.send(pixel_info).ok();
                 }
@@ -295,82 +225,4 @@ pub fn run_pixel_receiver(
     Err(color_eyre::eyre::eyre!(
         "Infinite loop ended unexpectedly (something must have went wrong)"
     ))
-}
-
-pub fn run_pixel_processor(
-    pixel_receiver: Receiver<PixelInfo>,
-    canvas_state: Arc<CanvasState>,
-    min_update_interval: Duration,
-) -> Result<()> {
-    let mut canvas = DynamicImage::ImageRgb8(image::RgbImage::from_pixel(512, 512, Rgb([0xFF; 3])));
-    canvas_state.blocking_update_full_canvas(&canvas)?;
-    let mut delta_canvas = DynamicImage::new_rgba8(512, 512);
-
-    info!("Ping-Processor started. Listening for Pixel updates to update and encode canvas...");
-
-    let mut pending_update = false;
-    let mut last_updated_at = Instant::now();
-
-    let mut pps_counter_reset_at = Instant::now();
-    let mut pps_counter: usize = 0;
-
-    let recv_timeout = min_update_interval / 2;
-    loop {
-        let recv_result = pixel_receiver.recv_timeout(recv_timeout);
-        let now = Instant::now();
-
-        if now - pps_counter_reset_at >= Duration::from_secs(1) {
-            // Could be better, but good enough for now
-            pps_counter_reset_at = Instant::now();
-            canvas_state.update_pps(pps_counter);
-            pps_counter = 0;
-        }
-
-        match recv_result {
-            Ok(pixel_info) => {
-                pps_counter += 1;
-
-                for x_offset in 0..(pixel_info.size as u16) {
-                    let x = pixel_info.pos.x + x_offset;
-                    if x >= 512 {
-                        break;
-                    }
-                    for y_offset in 0..(pixel_info.size as u16) {
-                        let y = pixel_info.pos.y + y_offset;
-                        if y >= 512 {
-                            break;
-                        }
-
-                        canvas.as_mut_rgb8().unwrap().put_pixel(
-                            x as u32,
-                            y as u32,
-                            pixel_info.color,
-                        );
-                        delta_canvas.as_mut_rgba8().unwrap().put_pixel(
-                            x as u32,
-                            y as u32,
-                            Rgba([
-                                pixel_info.color.0[0],
-                                pixel_info.color.0[1],
-                                pixel_info.color.0[2],
-                                0xFF,
-                            ]),
-                        );
-                    }
-                }
-                pending_update = true;
-            }
-            Err(_err) => {} // Timeout hit
-        }
-
-        if pending_update && now - last_updated_at >= min_update_interval {
-            //let start = Instant::now();
-            canvas_state.blocking_update_full_canvas(&canvas)?;
-            canvas_state.blocking_update_delta_canvas(&delta_canvas)?;
-            delta_canvas = DynamicImage::new_rgba8(512, 512);
-            //debug!("Encoded and updated canvas in {:?}.", start.elapsed());
-            last_updated_at = now;
-            pending_update = false;
-        }
-    }
 }

@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, io::Cursor};
+use std::io::Cursor;
 
 use color_eyre::{eyre::ensure, Result};
 use image::{codecs::png::PngEncoder, DynamicImage, GenericImageView, ImageEncoder};
