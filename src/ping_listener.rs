@@ -80,6 +80,7 @@ pub fn icmpv6_checksum(src_ip: Ipv6Addr, dest_ip: Ipv6Addr, icmpv6_packet: &[u8]
 
 /// Analysze a packet, check if it is a valid IPv6 Ping and extract some information from it
 /// Returns Ok(None) if packet is not a valid IPv6 ping packet.
+#[inline]
 pub fn check_for_icmpv6_ping(
     data: &[u8],
     is_ethernet: bool,
