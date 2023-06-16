@@ -1,7 +1,10 @@
 mod canvas;
-mod ping_receiver;
+mod canvas_processor;
+mod cli_args;
+mod ping_listener;
 
 use canvas::CanvasState;
+use cli_args::CliArgs;
 
 use std::{
     net::{IpAddr, SocketAddr},
@@ -31,61 +34,35 @@ use tower_http::{
 #[macro_use]
 extern crate tracing;
 
-fn max_canvas_fps_range(s: &str) -> std::result::Result<u16, String> {
-    clap_num::number_range(s, 1, 1000)
-}
-
-#[derive(Parser)]
-struct Args {
-    /// Name of the interface on which to sniff on for pings
-    interface: String,
-
-    /// How often the canvas is allowed to update per second max.
-    #[arg(short = 'f', long, value_parser=max_canvas_fps_range, default_value = "10")]
-    max_canvas_fps: u16,
-
-    /// Require valid imcpv6 ping checksums in oder to accept pixel updates.
-    #[arg(short, long, action)]
-    require_valid_checksum: bool,
-
-    /// What address the webserver should bind to
-    #[arg(short, long, default_value = "::")]
-    bind: String,
-
-    /// What port the webserver should bind to
-    #[arg(short, long, default_value = "8080")]
-    port: u16,
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
-    let args = Args::parse();
+    let args = CliArgs::parse();
     tracing_subscriber::fmt::init();
 
     let canvas_state = Arc::new(CanvasState::default());
     let canvas_state_clone = canvas_state.clone();
     let (pixel_sender, pixel_receiver) = std::sync::mpsc::channel();
     std::thread::Builder::new()
-        .name("Pixel-Recveiver".to_owned())
+        .name("Ping-Listener".to_owned())
         .spawn(move || {
-            if let Err(err) = ping_receiver::run_pixel_receiver(
+            if let Err(err) = ping_listener::run_ping_listener(
                 &args.interface,
                 args.require_valid_checksum,
                 pixel_sender,
             ) {
-                error!("Pixel-Receiver crashed: {err:#}");
+                error!("Ping-Listener crashed: {err:#}\nIf this error is permission related either run this program as root/admin or, on linux, give it the capability CAP_NET_RAW (e.g. \"sudo setcap CAP_NET_RAW+ep ./path/to/binary\").");
                 std::process::exit(1);
             }
         })?;
     std::thread::Builder::new()
-        .name("Pixel-Processor".to_owned())
+        .name("Canvas-Processor".to_owned())
         .spawn(move || {
-            if let Err(err) = ping_receiver::run_pixel_processor(
+            if let Err(err) = canvas_processor::run_canvas_processor(
                 pixel_receiver,
                 canvas_state_clone,
                 Duration::from_nanos(1_000_000_000 / args.max_canvas_fps as u64),
             ) {
-                error!("Pixel-Processor crashed: {err:#}");
+                error!("Canvas-Processor crashed: {err:#}");
                 std::process::exit(1);
             }
         })?;
