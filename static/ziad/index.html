@@ -6,6 +6,7 @@
     <link rel='stylesheet' href='styles.css' />
     <title>Place IPv6 | </title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../prefix.js"></script>
 </head>
 
 <body>
@@ -13,7 +14,8 @@
         <div id="main">
             <h1>Place: IPv6v2 (EnderKill98's Rust rewrite of Alula's Rust rewrite)</h1>
             <p>Place down pixels on the canvas by pinging the below IP:</p>
-            <h2>2a01:4f8:c012:f8e6:<span class="c-yellow">S</span><span class="c-cyan">XXX</span>:<span
+	    <h2><span id="ipv6-prefix">PPPP:PPPP:PPPP:PPPP</span>:<span
+                    class="c-yellow">S</span><span class="c-cyan">XXX</span>:<span
                     class="c-cyan">YYY</span>:<span class="c-red">RR</span>:<span class="c-green">GG</span><span
                     class="c-blue">BB</span></h2>
             <p>where XXX and YYY are coordinates, in hex numbers, from 0 to 512, S is either 1 or 2 (for 1x1 or 2x2
