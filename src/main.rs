@@ -8,11 +8,12 @@ mod websocket_handler;
 
 use canvas::CanvasState;
 use cli_args::CliArgs;
+use serde::Serialize;
 
 use std::{
     net::{IpAddr, SocketAddr},
     str::FromStr,
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
@@ -21,7 +22,7 @@ use axum::{
     http::header,
     response::{AppendHeaders, IntoResponse},
     routing::get,
-    Router,
+    Json, Router,
 };
 use clap::Parser;
 use color_eyre::{eyre::Context, Result};
@@ -32,6 +33,15 @@ use tower_http::{
 
 #[macro_use]
 extern crate tracing;
+
+#[derive(Serialize, Clone)]
+struct ServerConfig {
+    public_prefix: Option<String>,
+}
+
+static SERVER_CONFIG: Mutex<ServerConfig> = Mutex::new(ServerConfig {
+    public_prefix: None,
+});
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -71,9 +81,12 @@ async fn main() -> Result<()> {
             }
         })?;
 
+    SERVER_CONFIG.lock().unwrap().public_prefix = args.public_prefix.clone();
+
     let app = Router::new()
         .route("/ws", get(websocket_handler::get_ws))
         .route("/canvas.png", get(get_canvas))
+        .route("/serverconfig.json", get(get_server_config))
         .fallback_service(ServeDir::new("./static"))
         .with_state(canvas_state)
         .layer(
@@ -103,4 +116,8 @@ async fn get_canvas(State(canvas_state): State<Arc<CanvasState>>) -> impl IntoRe
         AppendHeaders([(header::CONTENT_TYPE, "image/png")]),
         canvas_state.read_encoded_full_canvas().await.get_encoded(),
     )
+}
+
+async fn get_server_config() -> Json<ServerConfig> {
+    Json(SERVER_CONFIG.lock().unwrap().clone())
 }
