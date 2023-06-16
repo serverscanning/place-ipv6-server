@@ -100,19 +100,17 @@ function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction, gData = [], zero
 function subscribeToCanvas() {
     const canvasEl = document.getElementById("canvas");
     const canvasCtx = canvasEl.getContext("2d");
-    const canvasStatusEl = document.getElementById("canvas-status");
     const canvasPpsEl = document.getElementById("canvas-pps");
     let dr = false;
 
     console.log("Websocket: Connecting...");
-    canvasStatusEl.innerText = "Connecting...";
     canvasPpsEl.innerText = "Connecting...";
 
     const ws = new WebSocket((document.location.protocol === "https:" ? "wss://" : "ws://") + document.location.host + "/ws");
     ws.binaryType = "blob";
     ws.onopen = (event) => {
         console.log("Websocket: Connected");
-        canvasStatusEl.innerText = "Connected";
+        canvasPpsEl.innerText = "Connected";
 
         ws.send(JSON.stringify({ request: "delta_canvas_stream", enabled: true }));
         ws.send(JSON.stringify({ request: "get_full_canvas_once" }));
@@ -146,8 +144,7 @@ function subscribeToCanvas() {
     ws.onclose = (event) => {
         document.removeEventListener("visibilitychange", visibilityChangeHandler);
         console.log("Websocket: Closed. Reconnecting in 3s...");
-        canvasStatusEl.innerText = (didError ? "Error!" : "Lost connection!") + " Attempting to reconnect in 3s...";
-        canvasPpsEl.innerText = "";
+        canvasPpsEl.innerText = (didError ? "Error!" : "Lost connection!") + " Attempting to reconnect in 3s...";
         setTimeout(subscribeToCanvas, 3000);
     }
 
