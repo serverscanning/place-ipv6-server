@@ -21,6 +21,8 @@ enum WsRequest {
     GetFullCanvasOnce,
     DeltaCanvasStream { enabled: bool },
     PpsUpdates { enabled: bool },
+    WsCountUpdates { enabled: bool },
+    GetWsCountUpdateOnce,
 }
 
 /// Server -> Client
@@ -28,6 +30,7 @@ enum WsRequest {
 #[serde(tag = "message", rename_all = "snake_case")]
 enum WsMessage {
     PpsUpdate { pps: usize },
+    WsCountUpdate { ws_connections: usize },
 }
 
 pub async fn get_ws(
@@ -51,11 +54,15 @@ async fn websocket_connection(
     addr: SocketAddr,
 ) -> Result<()> {
     info!("Websocket: {addr} connected");
+    let _ws_tracker = canvas_state.track_new_websocket();
+
     let mut delta_canvas_receiver = canvas_state.read_encoded_delta_canvas().await.subscribe();
     let mut pps_receiver = canvas_state.subscribe_to_pps();
+    let mut ws_count_receiver = canvas_state.subscribe_to_websocket_count();
 
     let mut delta_canvas_stream_enabled = false;
     let mut pps_updates_enabled = false;
+    let mut ws_count_updates_enabled = false;
 
     loop {
         tokio::select! {
@@ -68,6 +75,12 @@ async fn websocket_connection(
                 if pps_updates_enabled {
                     let message = WsMessage::PpsUpdate { pps: pps_res.context("Receive pps update")? };
                     ws.send(Message::Text(serde_json::to_string(&message).context("Encode pps update")?)).await.context("Send pps update")?;
+                }
+            }
+            ws_count_res = ws_count_receiver.recv() => {
+                if ws_count_updates_enabled {
+                    let message = WsMessage::WsCountUpdate { ws_connections: ws_count_res.context("Receive ws count update")? };
+                    ws.send(Message::Text(serde_json::to_string(&message).context("Encode ws count update")?)).await.context("Send ws count update")?;
                 }
             }
             maybe_ws_message_res = ws.recv() => {
@@ -95,6 +108,15 @@ async fn websocket_connection(
                             WsRequest::PpsUpdates { enabled } => {
                                 pps_updates_enabled = enabled;
                                 debug!("Websocket: {addr} {} pps updates", if enabled { "enabled" } else { "disabled" })
+                            },
+                            WsRequest::WsCountUpdates { enabled } => {
+                                ws_count_updates_enabled = enabled;
+                                debug!("Websocket: {addr} {} ws count updates", if enabled { "enabled" } else { "disabled" })
+                            },
+                            WsRequest::GetWsCountUpdateOnce => {
+                                debug!("Websocket: {addr} requested ws count once");
+                                let message = WsMessage::WsCountUpdate { ws_connections: canvas_state.websocket_count() };
+                                ws.send(Message::Text(serde_json::to_string(&message).context("Encode ws count update")?)).await.context("Send ws count update")?;
                             },
                         }
                     }

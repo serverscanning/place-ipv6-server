@@ -1,6 +1,12 @@
 //! Canvas State struct and update/subscribe logic as well as encoding the canvas to a PNG binary.
 
-use std::io::Cursor;
+use std::{
+    io::Cursor,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+};
 
 use color_eyre::{eyre::ensure, Result};
 use image::{codecs::png::PngEncoder, DynamicImage, GenericImageView, ImageEncoder};
@@ -14,6 +20,8 @@ pub struct CanvasState {
     encoded_full_canvas: RwLock<EncodedCanvas>,
     encoded_delta_canvas: RwLock<EncodedCanvas>,
     pps_publisher: Sender<usize>,
+    ws_connection_count: Arc<AtomicUsize>,
+    ws_connection_count_publisher: Sender<usize>,
 }
 
 impl CanvasState {
@@ -48,6 +56,21 @@ impl CanvasState {
     pub fn subscribe_to_pps(&self) -> Receiver<usize> {
         self.pps_publisher.subscribe()
     }
+
+    pub fn track_new_websocket(&self) -> WsConnectionCountTracker {
+        WsConnectionCountTracker::new(
+            self.ws_connection_count.clone(),
+            self.ws_connection_count_publisher.clone(),
+        )
+    }
+
+    pub fn subscribe_to_websocket_count(&self) -> Receiver<usize> {
+        self.ws_connection_count_publisher.subscribe()
+    }
+
+    pub fn websocket_count(&self) -> usize {
+        self.ws_connection_count.load(Ordering::Relaxed)
+    }
 }
 
 impl Default for CanvasState {
@@ -60,7 +83,30 @@ impl Default for CanvasState {
                 EncodedCanvas::new(&DynamicImage::new_rgba8(512, 512)).unwrap(),
             ),
             pps_publisher: tokio::sync::broadcast::channel(64).0,
+            ws_connection_count: Arc::new(AtomicUsize::new(0)),
+            ws_connection_count_publisher: tokio::sync::broadcast::channel(64).0,
         }
+    }
+}
+
+/// Used to track how many websocket connections are active
+pub struct WsConnectionCountTracker {
+    count: Arc<AtomicUsize>,
+    publisher: Sender<usize>,
+}
+
+impl WsConnectionCountTracker {
+    fn new(count: Arc<AtomicUsize>, publisher: Sender<usize>) -> Self {
+        let last_val = count.fetch_add(1, Ordering::Relaxed);
+        publisher.send(last_val + 1).ok();
+        Self { count, publisher }
+    }
+}
+
+impl Drop for WsConnectionCountTracker {
+    fn drop(&mut self) {
+        let last_val = self.count.fetch_sub(1, Ordering::Relaxed);
+        self.publisher.send(last_val - 1).ok();
     }
 }
 
