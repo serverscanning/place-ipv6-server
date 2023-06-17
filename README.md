@@ -2,7 +2,7 @@
 
 A re-implementation of ziad87's awesome "Place: IPv6" site.
 
-Difference to the original is, that this only needs a /64-IPv6 block instead of a /48 one. Everything is pushed one segment back and GG+BB share the last segement now (for the full impl, look for the function "from_addr" in `src/ping_receiver.rs`).
+Difference to the original is, that this only needs a /64-IPv6 block instead of a /48 one. Everything is pushed one segment back and GG+BB share the last segment now (for the full impl, look for the function "from_addr" in `src/ping_receiver.rs`).
 
 ![Screenshot](https://transfer.cosmos-ink.net/hHufof4KOC/grafik.png)
 
