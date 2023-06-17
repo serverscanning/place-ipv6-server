@@ -111,7 +111,7 @@ a:visited {
     text-decoration: underline;
 }
 
-#cvs {
+#canvas {
   border: 2px solid black;
   box-shadow: 3px 3px #000;
 }
@@ -148,7 +148,7 @@ a:visited {
   width: 400px;
   height: 80px;
   text-align: left;
-  background: linear-gradient(90deg, #000 0%, #000 15%, #0001 90%, #0001 100%);
+  background: linear-gradient(90deg, #000 0%, #000 15%, #0008 100%);
   top: 0px;
   left: 0px;
   border: none;
@@ -162,7 +162,7 @@ a:visited {
   top: 0px;
   right: 0px;
   text-align: right;
-  background: linear-gradient(270deg, #000 0%, #000 15%, #0000 90%, #0000 100%);
+  background: linear-gradient(90deg, #0008 0%, #0000 90%, #0000 100%);
   color: var(--text-muted-color);
   float: right;
   border: none;
