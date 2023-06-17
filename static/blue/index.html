@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Place IPv6 v2</title>
+        <link rel="stylesheet" href="style.css">
+        <script src="script.js"></script>
+        <script src="../prefix.js"></script>
+        <script src="../frontends.js"></script>
+    </head>
+    <body>
+        <div id="container">
+            <h1>Place: IPv6v2</h1>
+            <p>This is a fun experiment and continuation of ziad87's sillyness.
+                Try the <a href="ziad/">ziad</a> or <a href="timr">timr</a> interfaces.</p>
+            <p>Each pixel or 2x2 group is controlled by pinging this IPv6 Prefix
+                and specifying how to place the pixel by changing the last 4 segments.
+            </p>
+            <h3>DISCLAIMER</h3>
+            <p>This is a self-hosted open-source software found <a href="https://github.com/serverscanning/place-ipv6-server/">here</a>. It is likely not moderated and therefore <b>not suited for minors</b> as people can put pretty much anything up here! (A more effective disclaimer is WIP)</p>
+            <h3>HOW TO USE</h3>
+            <p>
+                <span title="The first 4 segments (of probably this same server)" id="ipv6-prefix">PPPP:PPPP:PPPP:PPPP</span>:<span title="The size of affected pixels. Use 1 for 1x1 and 2 for 2x2." id="ipv6-size">S</span><span title="The X and Y coordinates of the pixel(s) you want to change" id="ipv6-coords"><span id="ipv6-coords-x">XXX</span>:<span id="ipv6-coords-y">YYY</span></span>:<span title="The color the pixel(s) should turn into" id="ipv6-colors"><span id="ipv6-colors-red">RR</span>:<span id="ipv6-colors-green">GG</span><span id="ipv6-colors-blue">BB</span></span> - <span title="Not me, but you get the idea it seems!" id="ipv6-more">(hover to see more)</span>
+            </p>
+            <div id="canvas-container">
+                <canvas id="canvas" width="512" height="512"></canvas>
+                <span id="canvas-pps"></span>
+                <span id="canvas-status">...</span>
+            </div>
+
+            <span id="other-frontends">Other frontends: <ul id="other-frontends-list"></ul></span>
+        </div>
+    </body>
+</html>
