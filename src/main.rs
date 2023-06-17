@@ -8,7 +8,7 @@ mod websocket_handler;
 
 use canvas::CanvasState;
 use cli_args::CliArgs;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use std::{
     net::{IpAddr, SocketAddr},
@@ -18,7 +18,7 @@ use std::{
 };
 
 use axum::{
-    extract::State,
+    extract::{Query, State},
     http::header,
     response::{AppendHeaders, IntoResponse},
     routing::get,
@@ -111,9 +111,22 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn get_canvas(State(canvas_state): State<Arc<CanvasState>>) -> impl IntoResponse {
+#[derive(Deserialize)]
+struct CanvasQueryParams {
+    #[serde(default)]
+    allow_cache: bool,
+}
+
+async fn get_canvas(
+    State(canvas_state): State<Arc<CanvasState>>,
+    Query(params): Query<CanvasQueryParams>,
+) -> impl IntoResponse {
+    let mut headers = vec![(header::CONTENT_TYPE, "image/png")];
+    if !params.allow_cache {
+        headers.push((header::CACHE_CONTROL, "no-store"));
+    }
     (
-        AppendHeaders([(header::CONTENT_TYPE, "image/png")]),
+        AppendHeaders(headers),
         canvas_state.read_encoded_full_canvas().await.get_encoded(),
     )
 }
