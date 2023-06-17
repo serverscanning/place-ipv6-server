@@ -29,7 +29,7 @@ pub struct CliArgs {
     #[arg(short, long, default_value = "8080")]
     pub port: u16,
 
-    /// The first 4 segements to be displayed in frontends for the user. Example: "aaaa:bbbb:cccc:dddd"
+    /// The first 4 segments to be displayed in frontends for the user. Example: "aaaa:bbbb:cccc:dddd"
     #[arg(short = 'P', long)]
     pub public_prefix: Option<String>,
 }
