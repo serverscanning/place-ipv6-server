@@ -6,6 +6,14 @@ function changeSeenDisclaimer() {
 
 document.addEventListener("DOMContentLoaded", subscribeToCanvas);
 
+window.addEventListener('DOMContentLoaded', () => {
+    console.log("Start")
+    if (localStorage["accepted_explicit"]) {
+        document.getElementById('warn').style.display = "none";
+        document.getElementById('main').style.display = "block";
+    }
+});
+
 maxPps = 0;
 graphCounter = 0;
 
