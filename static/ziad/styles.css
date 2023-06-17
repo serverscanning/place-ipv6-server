@@ -120,6 +120,28 @@ a:visited {
   border: none;
 }
 
+#other-frontends {
+    margin-top: 5px;
+    font-size: 9pt;
+    color: var(--text-primary-color);
+}
+
+#other-frontends-list {
+    padding: 0;
+    display: inline;
+}
+#other-frontends-list li {
+    display: inline;
+    content: ", "
+}
+#other-frontends-list li:last-child:after {
+    content: ""
+}
+#other-frontends-list li:after {
+    content: ", "
+}
+
+
 @media (prefers-color-scheme: light) {
   body {
     color: black;
@@ -128,7 +150,7 @@ a:visited {
   #container {
     background: linear-gradient(#c7e0da, rgb(131, 177, 169));
   }
-  
+
   #warn-inner {
     background: linear-gradient(#faa, #fbb);
   }
