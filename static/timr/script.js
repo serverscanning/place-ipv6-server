@@ -162,7 +162,7 @@ function subscribeToCanvas() {
                 for (const pps of ppsEntries)
                     if (pps > maxPps)
                         maxPps = pps;
-                canvasPpsEl.innerText = "PPS (current / max): " + formatNumber(wsMessage.pps, digits(maxPps)) + " / " + formatNumber(maxPps, 0);
+                canvasPpsEl.innerHTML = "PPS (current / max): </br>" + formatNumber(wsMessage.pps, digits(maxPps)) + " / " + formatNumber(maxPps, 0);
                 if (dr) dr();
             }
         } else {
