@@ -4,7 +4,6 @@ maxPps = 0;
 graphCounter = 0;
 
 function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction, gData = [], zeroGdata = false){
-    console.log("tmGraph");
     let WIDTH = cvs2.width = w;
     let HEIGHT = cvs2.height = h;
     const DIFF = df;
@@ -57,7 +56,6 @@ function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction, gData = [], zero
     }
 
     function draw(){
-        console.log("draw()");
         // Add data
         let data = dataFunction(graphCounter);
         pushGraphHistory(data);
