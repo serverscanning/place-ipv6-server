@@ -123,49 +123,37 @@ a:visited {
   height: 80px;
 }
 
-#phacker-style div {
-  color: white;
-  width: 400px;
-  height: 80px;
-  top: 0px;
-  left: 0px;
-  display: flex;
-  position: absolute;
-}
-
-#phacker-style div {
-  display: block;
-  padding: 10px;
-  position: absolute;
-  top: 0px;
-  left: 0px;
-  font-size: 14px;
-  text-align: left;
-}
-
 #canvas-pps {
   position: absolute;
-  width: 400px;
+  width: 800px;
   height: 80px;
   text-align: left;
-  background: linear-gradient(90deg, #000 0%, #000 15%, #0008 100%);
+  background: linear-gradient(90deg, #000 0%, #000 15%, #0000 90%, #0000 100%);
   top: 0px;
   left: 0px;
   border: none;
   color: var(--text-muted-color);
 }
 
-#canvas-status {
-  position: absolute;
-  width: 400px;
-  height: 80px;
-  top: 0px;
-  right: 0px;
-  text-align: right;
-  background: linear-gradient(90deg, #0008 0%, #0000 90%, #0000 100%);
-  color: var(--text-muted-color);
-  float: right;
-  border: none;
+#other-frontends {
+    margin-top: 5px;
+    font-size: 9pt;
+    color: var(--text-primary-color);
+}
+
+#other-frontends-list {
+    padding: 0;
+    display: inline;
+}
+#other-frontends-list li {
+    display: inline;
+    content: ", "
+}
+#other-frontends-list li:last-child:after {
+    content: ""
+}
+#other-frontends-list li:after {
+    content: ", "
 }
 
 @media (prefers-color-scheme: light) {
