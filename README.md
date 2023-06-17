@@ -21,6 +21,8 @@ When connecting to the Websocket, by default it will not send you any data and j
 - `{ "request": "get_full_canvas_once" }`: Return a binary message once containing the full canvas (RGB-png file)
 - `{ "request": "delta_canvas_stream", "enabled": <bool> }`: Turn on receiving delta frames (binary messages) when pings are received (off by default, RGBA-png files)
 - `{ "request": "pps_updates", "enabled": <bool> }`: Turn on receiving pps updates every second (text message like this: `{ "message": "pps_update", "pps" <number> }`)
+- `{ "request": "get_ws_count_update_once" }`: Receive a WS Count Update once (text message like this: `{ "message": "ws_count_update", "ws_connections" <number> }`)
+- `{ "request": "get_ws_count_updates", "enabled": <bool> }`: Enable receiving ws count updates when it changes. Messages will look the same as for `get_ws_count_update_once`
 
 ## Frontend
 
