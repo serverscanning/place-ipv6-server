@@ -128,11 +128,12 @@ a:visited {
   width: 800px;
   height: 80px;
   text-align: left;
+  padding: 10px;
   background: linear-gradient(90deg, #000 0%, #000 15%, #0000 90%, #0000 100%);
   top: 0px;
   left: 0px;
   border: none;
-  color: var(--text-muted-color);
+  color: white;
 }
 
 #other-frontends {
