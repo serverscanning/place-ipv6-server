@@ -113,3 +113,24 @@ a {
     color: var(--text-muted-color) !important;
     text-decoration: underline;
 }
+
+#other-frontends {
+    margin-top: 5px;
+    font-size: 9pt;
+    color: var(--text-primary-color);
+}
+
+#other-frontends-list {
+    padding: 0;
+    display: inline;
+}
+#other-frontends-list li {
+    display: inline;
+    content: ", "
+}
+#other-frontends-list li:last-child:after {
+    content: ""
+}
+#other-frontends-list li:after {
+    content: ", "
+}
