@@ -141,7 +141,10 @@ a:visited {
     content: ", "
 }
 
-
+#pps {
+  text-align: left;
+  padding: 10px;
+}
 @media (prefers-color-scheme: light) {
   body {
     color: black;
