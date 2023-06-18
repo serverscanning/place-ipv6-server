@@ -126,13 +126,14 @@ a:visited {
 #canvas-pps {
   position: absolute;
   width: 800px;
-  height: 80px;
+  height: 90px;
   text-align: left;
-  padding: 10px;
+  padding: 6px;
   background: linear-gradient(90deg, #000 0%, #000 15%, #0000 90%, #0000 100%);
   top: 0px;
   left: 0px;
   border: none;
+  font-size: 14px;
   color: white;
 }
 
