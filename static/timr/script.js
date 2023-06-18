@@ -1,9 +1,9 @@
 document.addEventListener("DOMContentLoaded", subscribeToCanvas);
 
-maxPps = 0;
+pps = 0;
 graphCounter = 0;
 
-function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction, gData = [], zeroGdata = false){
+function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction){
     let WIDTH = cvs2.width = w;
     let HEIGHT = cvs2.height = h;
     const DIFF = df;
@@ -15,15 +15,12 @@ function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction, gData = [], zero
     cvs2.style.imageRendering = "pixelated";
     let ctx2 = cvs2.getContext('2d');
 
-    let graphHistory = [...gData];
-    if (graphHistory.length < (WIDTH/DIFF)+10 && zeroGdata){
-        let amt = Math.round((WIDTH/DIFF)+10);
-        graphHistory = [...(new Array(amt)).fill(1), ...gData]
-    }
+    let graphHistory = (new Array(WIDTH)).fill([0,0]);
 
     function pushGraphHistory(y){
         graphHistory.push(y);
-        if (graphHistory.length > (WIDTH/DIFF)+10) graphHistory.shift();
+        if (graphHistory.length > WIDTH)
+            graphHistory.shift();
     }
 
     function getLine(x1, y1, x2, y2) {
@@ -75,19 +72,39 @@ function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction, gData = [], zero
         }
 
         // Draw graph lines
-        ctx2.fillStyle = LINECOLOR;
-        let rVal = null;
+        let rVal1 = null;
+        let rVal2 = null;
+        let maxPps = 0;
+        let maxWs = 10
+        for (const graphEntry of graphHistory) {
+            if (graphEntry[0] > maxPps)
+                maxPps = graphEntry[0];
+            if (graphEntry[1] > maxWs)
+                maxWs = graphEntry[1];
+        }
         graphHistory.reverse();
-        for (let a in graphHistory){
-            let x = WIDTH - ((a) * DIFF);
-            if (x <= 2)
+        for (let a in graphHistory) {
+            ctx2.fillStyle = "teal";
+            let x2 = WIDTH - ((a) * DIFF);
+            if (x2 <= 2)
                 continue;
-            let val = graphHistory[a];
-            let valA = HEIGHT - Math.floor(val / (maxPps + ~~(maxPps/10)) * HEIGHT);
+            let val = graphHistory[a][1];
+            let valA = HEIGHT - Math.floor(val / (maxWs + ~~(maxWs/10)) * HEIGHT);
             if (isNaN(valA) || (valA >= HEIGHT) || (valA < 0))
                 valA = HEIGHT - 1;
-            rVal && drawCoordsArr(getLine(rVal[0], rVal[1], x, valA));
-            rVal = [x, valA];
+            rVal2 && drawCoordsArr(getLine(rVal2[0], rVal2[1], x2, valA));
+            rVal2 = [x2, valA];
+
+            ctx2.fillStyle = "red";
+            let x1 = WIDTH - ((a) * DIFF);
+            if (x1 <= 2)
+                continue;
+            val = graphHistory[a][0];
+            valA = HEIGHT - Math.floor(val / (maxPps + ~~(maxPps/10)) * HEIGHT);
+            if (isNaN(valA) || (valA >= HEIGHT) || (valA < 0))
+                valA = HEIGHT - 1;
+            rVal1 && drawCoordsArr(getLine(rVal1[0], rVal1[1], x1, valA));
+            rVal1 = [x1, valA];
         }
         graphHistory.reverse();
     }
@@ -113,9 +130,11 @@ function subscribeToCanvas() {
         ws.send(JSON.stringify({ request: "delta_canvas_stream", enabled: true }));
         ws.send(JSON.stringify({ request: "get_full_canvas_once" }));
         ws.send(JSON.stringify({ request: "pps_updates", enabled: true }));
+        ws.send(JSON.stringify({ request: "ws_count_updates", enabled: true }));
+        ws.send(JSON.stringify({ request: "get_ws_count_update_once", enabled: true }));
 
-        dr = tmGraph(document.querySelector('#c6'), 800, 79, 25, 25, "#008040", "lime", 2, (gc)=>{
-                return maxPps;
+        dr = tmGraph(document.querySelector('#c6'), 800, 79, 25, 25, "#008040", "red", 2, (gc)=>{
+                return [pps, ws_count];
         }, [], true);
 
     };
@@ -147,6 +166,9 @@ function subscribeToCanvas() {
     }
 
     let ppsEntries = [];
+    let ws_count = 1;
+    let ws_max = ws_count;
+    let width = document.querySelector('#c6').width;
 
     ws.onmessage = async (event) => {
         if (event.data instanceof Blob) {
@@ -156,14 +178,23 @@ function subscribeToCanvas() {
             let wsMessage = JSON.parse(event.data);
             if (wsMessage.message === "pps_update") {
                 ppsEntries.push(wsMessage.pps);
-                while (ppsEntries.length > 10)
+                pps = wsMessage.pps;
+                while (ppsEntries.length > width)
                     ppsEntries.splice(0, 1);
-                maxPps = 0;
-                for (const pps of ppsEntries)
-                    if (pps > maxPps)
-                        maxPps = pps;
-                canvasPpsEl.innerHTML = "PPS (current / max): </br>" + formatNumber(wsMessage.pps, digits(maxPps)) + " / " + formatNumber(maxPps, 0);
+                let maxPps = 0;
+                for (const ppsEntry of ppsEntries)
+                    if (ppsEntry > maxPps)
+                        maxPps = ppsEntry;
+                canvasPpsEl.innerHTML = "Current / Max: </br>" +
+                        "<div style='color:red;'>PPS: " + formatNumber(pps, digits(maxPps)) +
+                        " / " + formatNumber(maxPps, 0) + "</div>" +
+                        "<div style='color:teal;'>Viewers: " + ws_count + " / " + ws_max + "</div>";
                 if (dr) dr();
+            } else if (wsMessage.message === "ws_count_update") {
+                ws_count = wsMessage.ws_connections;
+                if (ws_count > ws_max)
+                    ws_max = ws_count;
+                //console.log("WSC: " + ws_count + " / " + ws_max);
             }
         } else {
             console.error("Received invalid type ws data: " + typeof (event.data));
