@@ -29,7 +29,7 @@ body {
   margin: auto;
   padding: 10px;
   text-align: center;
-  max-width: 820px;
+  max-width: 1040px;
 }
 
 #container {
@@ -118,9 +118,12 @@ a:visited {
 
 #phackerstyle {
   margin-top: 20px;
+  margin-left: auto;
+  margin-right: auto;
   position: relative;
   overflow: hidden;
   height: 80px;
+  width: 800px;
 }
 
 #canvas-pps {
