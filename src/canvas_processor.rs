@@ -12,6 +12,8 @@ use std::{
 };
 
 use crate::canvas::CanvasState;
+use crate::canvas::CANVASH;
+use crate::canvas::CANVASW;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -64,9 +66,9 @@ pub fn run_canvas_processor(
     canvas_state: Arc<CanvasState>,
     min_update_interval: Duration,
 ) -> Result<()> {
-    let mut canvas = DynamicImage::ImageRgb8(image::RgbImage::from_pixel(512, 512, Rgb([0xFF; 3])));
+    let mut canvas = DynamicImage::ImageRgb8(image::RgbImage::from_pixel(CANVASW.into(), CANVASH.into(), Rgb([0xFF; 3])));
     canvas_state.blocking_update_full_canvas(&canvas)?;
-    let mut delta_canvas = DynamicImage::new_rgba8(512, 512);
+    let mut delta_canvas = DynamicImage::new_rgba8(CANVASW.into(), CANVASH.into());
 
     info!("Started. Listening for Pixel updates to update and encode canvas...");
 
@@ -94,12 +96,12 @@ pub fn run_canvas_processor(
 
                 for x_offset in 0..(pixel_info.size as u16) {
                     let x = pixel_info.pos.x + x_offset;
-                    if x >= 512 {
+                    if x >= CANVASW {
                         break;
                     }
                     for y_offset in 0..(pixel_info.size as u16) {
                         let y = pixel_info.pos.y + y_offset;
-                        if y >= 512 {
+                        if y >= CANVASH {
                             break;
                         }
 
@@ -129,7 +131,7 @@ pub fn run_canvas_processor(
             //let start = Instant::now();
             canvas_state.blocking_update_full_canvas(&canvas)?;
             canvas_state.blocking_update_delta_canvas(&delta_canvas)?;
-            delta_canvas = DynamicImage::new_rgba8(512, 512);
+            delta_canvas = DynamicImage::new_rgba8(CANVASW.into(), CANVASH.into());
             //debug!("Encoded and updated canvas in {:?}.", start.elapsed());
             last_updated_at = now;
             pending_update = false;
