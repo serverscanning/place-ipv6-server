@@ -50,7 +50,7 @@ impl PixelInfo {
             2 => Size::Area2x2,
             _ => return None,
         };
-        if x >= 512 || y >= 512 {
+        if x >= CANVASW || y >= CANVASH {
             return None;
         }
         Some(PixelInfo {
