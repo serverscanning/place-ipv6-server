@@ -7,6 +7,8 @@ mod ping_listener;
 mod websocket_handler;
 
 use canvas::CanvasState;
+use crate::canvas::CANVASH;
+use crate::canvas::CANVASW;
 use cli_args::CliArgs;
 use serde::{Deserialize, Serialize};
 
@@ -37,10 +39,14 @@ extern crate tracing;
 #[derive(Serialize, Clone)]
 struct ServerConfig {
     public_prefix: Option<String>,
+    width: u16,
+    height: u16,
 }
 
 static SERVER_CONFIG: Mutex<ServerConfig> = Mutex::new(ServerConfig {
     public_prefix: None,
+    height: CANVASH,
+    width: CANVASW,
 });
 
 #[tokio::main]
