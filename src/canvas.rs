@@ -73,14 +73,17 @@ impl CanvasState {
     }
 }
 
+pub(crate) const CANVASW: u16 = 512;
+pub(crate) const CANVASH: u16 = 512;
+
 impl Default for CanvasState {
     fn default() -> Self {
         Self {
             encoded_full_canvas: RwLock::new(
-                EncodedCanvas::new(&DynamicImage::new_rgb8(512, 512)).unwrap(),
+                EncodedCanvas::new(&DynamicImage::new_rgb8(CANVASW.into(), CANVASH.into())).unwrap(),
             ),
             encoded_delta_canvas: RwLock::new(
-                EncodedCanvas::new(&DynamicImage::new_rgba8(512, 512)).unwrap(),
+                EncodedCanvas::new(&DynamicImage::new_rgba8(CANVASW.into(), CANVASH.into())).unwrap(),
             ),
             pps_publisher: tokio::sync::broadcast::channel(64).0,
             ws_connection_count: Arc::new(AtomicUsize::new(0)),
@@ -119,8 +122,8 @@ pub struct EncodedCanvas {
 impl EncodedCanvas {
     fn encode(canvas: &DynamicImage) -> Result<Vec<u8>> {
         ensure!(
-            canvas.width() == 512 && canvas.height() == 512,
-            "Canvas has correct dimensions of 512x512"
+            canvas.width() == CANVASW as u32 && canvas.height() == CANVASH as u32,
+            "Canvas has correct dimensions"
         );
 
         // Encode as png into the writer
