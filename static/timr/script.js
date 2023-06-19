@@ -4,9 +4,14 @@ document.addEventListener("DOMContentLoaded", resizeCanvas);
 async function resizeCanvas() {
     const serverConfig = await (await fetch("/serverconfig.json")).json();
     if (serverConfig["width"] !== null && serverConfig["height"] !== null) {
-	document.querySelector('#canvas').width = serverConfig["width"];
-	document.querySelector('#canvas').height = serverConfig["height"];
-	console.log("Canvas sized to " + serverConfig["width"] + "x" + serverConfig["height"]);
+         document.getElementById('canvas').width = serverConfig["width"];
+         document.getElementById('canvas').height = serverConfig["height"];
+         document.getElementById('ipv6-coords').setAttribute( 'title',
+                 document.getElementById('ipv6-coords').getAttribute('title') +
+                 " Canvas resolution is " +
+                 serverConfig["width"] + "x" +
+                 serverConfig["height"]);
+         console.log("Canvas sized to " + serverConfig["width"] + "x" + serverConfig["height"]);
     } else {
         console.log("No width/height in serverconfig.json!");
     }
