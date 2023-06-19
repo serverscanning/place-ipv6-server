@@ -1,5 +1,17 @@
 document.addEventListener("DOMContentLoaded", subscribeToCanvas);
 
+document.addEventListener("DOMContentLoaded", resizeCanvas);
+async function resizeCanvas() {
+    const serverConfig = await (await fetch("/serverconfig.json")).json();
+    if (serverConfig["width"] !== null && serverConfig["height"] !== null) {
+	document.querySelector('#canvas').width = serverConfig["width"];
+	document.querySelector('#canvas').height = serverConfig["height"];
+	console.log("Canvas sized to " + serverConfig["width"] + "x" + serverConfig["height"]);
+    } else {
+        console.log("No width/height in serverconfig.json!");
+    }
+}
+
 pps = 0;
 graphCounter = 0;
 
