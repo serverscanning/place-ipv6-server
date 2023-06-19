@@ -1,14 +1,13 @@
 document.addEventListener("DOMContentLoaded", subscribeToCanvas);
 
-document.addEventListener("DOMContentLoaded", resizeCanvas);
 async function resizeCanvas() {
     const serverConfig = await (await fetch("/serverconfig.json")).json();
     if (serverConfig["width"] !== null && serverConfig["height"] !== null) {
          document.getElementById('canvas').width = serverConfig["width"];
          document.getElementById('canvas').height = serverConfig["height"];
          document.getElementById('ipv6-coords').setAttribute( 'title',
-                 document.getElementById('ipv6-coords').getAttribute('title') +
-                 " Canvas resolution is " +
+                 "The X and Y coordinates of the pixel(s) you want to change. " +
+                 "Canvas resolution is " +
                  serverConfig["width"] + "x" +
                  serverConfig["height"]);
          console.log("Canvas sized to " + serverConfig["width"] + "x" + serverConfig["height"]);
@@ -137,6 +136,7 @@ function subscribeToCanvas() {
 
     console.log("Websocket: Connecting...");
     canvasPpsEl.innerText = "Connecting...";
+    resizeCanvas();
 
     const ws = new WebSocket((document.location.protocol === "https:" ? "wss://" : "ws://") + document.location.host + "/ws");
     ws.binaryType = "blob";
