@@ -106,9 +106,11 @@ async fn main() -> Result<()> {
     );
 
     info!(
-        "Starting webserver on {} port {}...",
+        "Starting webserver on {} port {} for {}x{} canvas...",
         webserver_addr.ip(),
-        webserver_addr.port()
+        webserver_addr.port(),
+        CANVASW,
+        CANVASH
     );
 
     axum::Server::bind(&webserver_addr)
