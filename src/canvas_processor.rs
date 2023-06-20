@@ -66,7 +66,11 @@ pub fn run_canvas_processor(
     canvas_state: Arc<CanvasState>,
     min_update_interval: Duration,
 ) -> Result<()> {
-    let mut canvas = DynamicImage::ImageRgb8(image::RgbImage::from_pixel(CANVASW.into(), CANVASH.into(), Rgb([0xFF; 3])));
+    let mut canvas = DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+        CANVASW.into(),
+        CANVASH.into(),
+        Rgb([0xFF; 3]),
+    ));
     canvas_state.blocking_update_full_canvas(&canvas)?;
     let mut delta_canvas = DynamicImage::new_rgba8(CANVASW.into(), CANVASH.into());
 
@@ -84,9 +88,12 @@ pub fn run_canvas_processor(
         let now = Instant::now();
 
         if now - pps_counter_reset_at >= Duration::from_secs(1) {
-            // Could be better, but good enough for now
+            // Should be accurate but counting total packets with it won't be possible anymore accurately
             pps_counter_reset_at = Instant::now();
-            canvas_state.update_pps(pps_counter);
+            let pps_adjusted = ((pps_counter as u64 * 1_000_000)
+                / (now - pps_counter_reset_at).as_micros() as u64)
+                as usize;
+            canvas_state.update_pps(pps_adjusted);
             pps_counter = 0;
         }
 
