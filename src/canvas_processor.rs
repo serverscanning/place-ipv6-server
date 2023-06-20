@@ -41,7 +41,7 @@ impl PixelInfo {
         let segments = ip_addr.segments();
         let size = (segments[4] & 0xf000) >> 12;
         let x = segments[4] & 0x0fff;
-        let y = segments[5] & 0x0fff;
+        let y = segments[5] & 0xffff;
         let red = (segments[6] & 0x00ff) as u8;
         let green = ((segments[7] & 0xff00) >> 8) as u8;
         let blue = (segments[7] & 0x00ff) as u8;
