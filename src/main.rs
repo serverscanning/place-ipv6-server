@@ -6,9 +6,9 @@ mod cli_args;
 mod ping_listener;
 mod websocket_handler;
 
-use canvas::CanvasState;
 use crate::canvas::CANVASH;
 use crate::canvas::CANVASW;
+use canvas::CanvasState;
 use cli_args::CliArgs;
 use serde::{Deserialize, Serialize};
 
@@ -61,7 +61,7 @@ async fn main() -> Result<()> {
 
     let canvas_state = Arc::new(CanvasState::default());
     let canvas_state_clone = canvas_state.clone();
-    let (pixel_sender, pixel_receiver) = std::sync::mpsc::channel();
+    let (pixel_sender, pixel_receiver) = crossbeam_channel::unbounded();
     std::thread::Builder::new()
         .name("Ping-Listener".to_owned())
         .spawn(move || {

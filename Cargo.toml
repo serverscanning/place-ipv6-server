@@ -20,6 +20,7 @@ color-eyre = "0.6.2"
 clap = { version = "4.3.1", features = [ "derive" ] }
 clap-num = "1.0.2"
 image = "0.24.6"
+crossbeam-channel = "0.5.8"
 
 # Webserver & Async stuff
 tokio = { version = "1.28.2", features = [ "macros", "rt-multi-thread" ] }

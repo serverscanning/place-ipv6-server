@@ -1,10 +1,10 @@
 //! Sniffs on the network and parsing ICMPv6 ping packets to pass along to canvas_processor.rs
 
 use color_eyre::Result;
+use crossbeam_channel::Sender;
 use std::{
     io::{Cursor, Read},
     net::Ipv6Addr,
-    sync::mpsc::Sender,
 };
 
 use crate::canvas_processor::PixelInfo;
