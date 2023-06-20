@@ -163,8 +163,8 @@ pub fn check_for_icmpv6_ping(
 
     let mut icmp_packet = vec![0u8; payload_length as usize];
     reader.read_exact(&mut icmp_packet)?;
-    if icmp_packet[0] != 0x80 || icmp_packet[1] != 0x00 {
-        // Wrong type (0x80) or Code (0x00)!
+    if (icmp_packet[0] != 0x80 && icmp_packet[0] != 0x81) || icmp_packet[1] != 0x00 {
+        // not ping request or reply or not Code (0x00)!
         return Ok(None);
     }
 
