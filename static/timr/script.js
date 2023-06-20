@@ -1,18 +1,28 @@
-document.addEventListener("DOMContentLoaded", subscribeToCanvas);
+document.addEventListener('DOMContentLoaded', subscribeToCanvas);
+
+document.addEventListener('DOMContentLoaded', canvasXY);
+
+function canvasXY() {
+    const canvasEl = document.getElementById('canvas');
+    canvasEl.addEventListener('mousemove', (e) => {
+        console.log(e.clientX + 'x' + e.clientY);
+        document.getElementById('canvas').setAttribute( 'title', 'canvas:' + e.offsetX + 'x' + e.offsetY);
+    });
+}
 
 async function resizeCanvas() {
-    const serverConfig = await (await fetch("/serverconfig.json")).json();
-    if (serverConfig["width"] !== null && serverConfig["height"] !== null) {
-         document.getElementById('canvas').width = serverConfig["width"];
-         document.getElementById('canvas').height = serverConfig["height"];
+    const serverConfig = await (await fetch('/serverconfig.json')).json();
+    if (serverConfig['width'] !== null && serverConfig['height'] !== null) {
+         document.getElementById('canvas').width = serverConfig['width'];
+         document.getElementById('canvas').height = serverConfig['height'];
          document.getElementById('ipv6-coords').setAttribute( 'title',
-                 "The X and Y coordinates of the pixel(s) you want to change. " +
-                 "Canvas resolution is " +
-                 serverConfig["width"] + "x" +
-                 serverConfig["height"]);
-         console.log("Canvas sized to " + serverConfig["width"] + "x" + serverConfig["height"]);
+                 'The X and Y coordinates of the pixel(s) you want to change. ' +
+                 'Canvas resolution is ' +
+                 serverConfig['width'] + 'x' +
+                 serverConfig['height']);
+         console.log('Canvas sized to ' + serverConfig['width'] + 'x' + serverConfig['height']);
     } else {
-        console.log("No width/height in serverconfig.json!");
+        console.log('No width/height in serverconfig.json!');
     }
 }
 
@@ -28,7 +38,7 @@ function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction){
     const GRAPHCOLOR = gf;
     const LINECOLOR = fg;
 
-    cvs2.style.imageRendering = "pixelated";
+    cvs2.style.imageRendering = 'pixelated';
     let ctx2 = cvs2.getContext('2d');
 
     let graphHistory = (new Array(WIDTH)).fill([0,0]);
@@ -74,7 +84,7 @@ function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction){
         pushGraphHistory(data);
 
         // Clear graph
-        ctx2.fillStyle = "#000000";
+        ctx2.fillStyle = '#000000';
         ctx2.fillRect(0, 0, WIDTH, HEIGHT);
         graphCounter++;
 
@@ -100,7 +110,7 @@ function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction){
         }
         graphHistory.reverse();
         for (let a in graphHistory) {
-            ctx2.fillStyle = "teal";
+            ctx2.fillStyle = 'teal';
             let x2 = WIDTH - ((a) * DIFF);
             if (x2 <= 2)
                 continue;
@@ -111,7 +121,7 @@ function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction){
             rVal2 && drawCoordsArr(getLine(rVal2[0], rVal2[1], x2, valA));
             rVal2 = [x2, valA];
 
-            ctx2.fillStyle = "red";
+            ctx2.fillStyle = 'red';
             let x1 = WIDTH - ((a) * DIFF);
             if (x1 <= 2)
                 continue;
@@ -129,56 +139,56 @@ function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction){
 }
 
 function subscribeToCanvas() {
-    const canvasEl = document.getElementById("canvas");
-    const canvasCtx = canvasEl.getContext("2d");
-    const canvasPpsEl = document.getElementById("canvas-pps");
+    const canvasEl = document.getElementById('canvas');
+    const canvasCtx = canvasEl.getContext('2d');
+    const canvasPpsEl = document.getElementById('canvas-pps');
     let dr = false;
 
-    console.log("Websocket: Connecting...");
-    canvasPpsEl.innerText = "Connecting...";
+    console.log('Websocket: Connecting...');
+    canvasPpsEl.innerText = 'Connecting...';
     resizeCanvas();
 
-    const ws = new WebSocket((document.location.protocol === "https:" ? "wss://" : "ws://") + document.location.host + "/ws");
-    ws.binaryType = "blob";
+    const ws = new WebSocket((document.location.protocol === 'https:' ? 'wss://' : 'ws://') + document.location.host + '/ws');
+    ws.binaryType = 'blob';
     ws.onopen = (event) => {
-        console.log("Websocket: Connected");
-        canvasPpsEl.innerText = "Connected";
+        console.log('Websocket: Connected');
+        canvasPpsEl.innerText = 'Connected';
 
-        ws.send(JSON.stringify({ request: "delta_canvas_stream", enabled: true }));
-        ws.send(JSON.stringify({ request: "get_full_canvas_once" }));
-        ws.send(JSON.stringify({ request: "pps_updates", enabled: true }));
-        ws.send(JSON.stringify({ request: "ws_count_updates", enabled: true }));
-        ws.send(JSON.stringify({ request: "get_ws_count_update_once", enabled: true }));
+        ws.send(JSON.stringify({ request: 'delta_canvas_stream', enabled: true }));
+        ws.send(JSON.stringify({ request: 'get_full_canvas_once' }));
+        ws.send(JSON.stringify({ request: 'pps_updates', enabled: true }));
+        ws.send(JSON.stringify({ request: 'ws_count_updates', enabled: true }));
+        ws.send(JSON.stringify({ request: 'get_ws_count_update_once', enabled: true }));
 
-        dr = tmGraph(document.querySelector('#c6'), 800, 79, 25, 25, "#008040", "red", 2, (gc)=>{
+        dr = tmGraph(document.querySelector('#c6'), 800, 79, 25, 25, '#008040', 'red', 2, (gc)=>{
                 return [pps, ws_count];
         }, [], true);
 
     };
 
     const visibilityChangeHandler = (event) => {
-        if (document.visibilityState === "visible") {
-            ws.send(JSON.stringify({ request: "delta_canvas_stream", enabled: true }));
-            ws.send(JSON.stringify({ request: "get_full_canvas_once" }));
-            console.log("Document became visible again. Enabled receiving delta frames again and requested a full canvas.");
+        if (document.visibilityState === 'visible') {
+            ws.send(JSON.stringify({ request: 'delta_canvas_stream', enabled: true }));
+            ws.send(JSON.stringify({ request: 'get_full_canvas_once' }));
+            console.log('Document became visible again. Enabled receiving delta frames again and requested a full canvas.');
         } else {
-            ws.send(JSON.stringify({ request: "delta_canvas_stream", enabled: false }));
-            console.log("Document invisible. Disabled receiving delta frame updates.");
+            ws.send(JSON.stringify({ request: 'delta_canvas_stream', enabled: false }));
+            console.log('Document invisible. Disabled receiving delta frame updates.');
         }
     };
-    document.addEventListener("visibilitychange", visibilityChangeHandler);
+    document.addEventListener('visibilitychange', visibilityChangeHandler);
 
     let didError = false;
     ws.onerror = (event) => {
-        console.log("Websocket: Error!");
+        console.log('Websocket: Error!');
         didError = true;
         ws.close();
     };
 
     ws.onclose = (event) => {
-        document.removeEventListener("visibilitychange", visibilityChangeHandler);
-        console.log("Websocket: Closed. Reconnecting in 3s...");
-        canvasPpsEl.innerText = (didError ? "Error!" : "Lost connection!") + " Attempting to reconnect in 3s...";
+        document.removeEventListener('visibilitychange', visibilityChangeHandler);
+        console.log('Websocket: Closed. Reconnecting in 3s...');
+        canvasPpsEl.innerText = (didError ? 'Error!' : 'Lost connection!') + ' Attempting to reconnect in 3s...';
         setTimeout(subscribeToCanvas, 3000);
     }
 
@@ -191,9 +201,9 @@ function subscribeToCanvas() {
         if (event.data instanceof Blob) {
             let imageBitmap = await createImageBitmap(event.data);
             canvasCtx.drawImage(imageBitmap, 0, 0);
-        } else if(typeof(event.data) === "string") {
+        } else if(typeof(event.data) === 'string') {
             let wsMessage = JSON.parse(event.data);
-            if (wsMessage.message === "pps_update") {
+            if (wsMessage.message === 'pps_update') {
                 ppsEntries.push(wsMessage.pps);
                 pps = wsMessage.pps;
                 while (ppsEntries.length > width)
@@ -202,19 +212,19 @@ function subscribeToCanvas() {
                 for (const ppsEntry of ppsEntries)
                     if (ppsEntry > maxPps)
                         maxPps = ppsEntry;
-                canvasPpsEl.innerHTML = "Current / Max: </br>" +
-                        "<div style='color:red;'>PPS: " + formatNumber(pps, digits(maxPps)) +
-                        " / " + formatNumber(maxPps, 0) + "</div>" +
-                        "<div style='color:teal;'>Viewers: " + ws_count + " / " + ws_max + "</div>";
+                canvasPpsEl.innerHTML = 'Current / Max: </br>' +
+                        '<div style="color:red;">PPS: ' + formatNumber(pps, digits(maxPps)) +
+                        ' / ' + formatNumber(maxPps, 0) + '</div>' +
+                        '<div style="color:teal;">Viewers: ' + ws_count + ' / ' + ws_max + '</div>';
                 if (dr) dr();
-            } else if (wsMessage.message === "ws_count_update") {
+            } else if (wsMessage.message === 'ws_count_update') {
                 ws_count = wsMessage.ws_connections;
                 if (ws_count > ws_max)
                     ws_max = ws_count;
-                //console.log("WSC: " + ws_count + " / " + ws_max);
+                //console.log('WSC: ' + ws_count + ' / ' + ws_max);
             }
         } else {
-            console.error("Received invalid type ws data: " + typeof (event.data));
+            console.error('Received invalid type ws data: ' + typeof (event.data));
         }
     }
 }
@@ -224,12 +234,12 @@ function digits(number) {
 }
 
 function formatNumber(number, padToMinDigits) {
-    let numberStrRev = (number + "").split("").reverse().join("");
-    while (numberStrRev.length < padToMinDigits) numberStrRev += "0";
-    let newNumberStrRev = "";
+    let numberStrRev = (number + '').split('').reverse().join('');
+    while (numberStrRev.length < padToMinDigits) numberStrRev += '0';
+    let newNumberStrRev = '';
     for (const i in numberStrRev) {
-        if (i > 0 && i % 3 == 0) newNumberStrRev += ",";
+        if (i > 0 && i % 3 == 0) newNumberStrRev += ',';
         newNumberStrRev += numberStrRev[i];
     }
-    return newNumberStrRev.split("").reverse().join("");
+    return newNumberStrRev.split('').reverse().join('');
 }
