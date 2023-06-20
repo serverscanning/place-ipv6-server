@@ -4,10 +4,11 @@
 //! Als sends updates in specified interval to all subscribers.
 
 use color_eyre::Result;
+use crossbeam_channel::Receiver;
 use image::{DynamicImage, Rgb, Rgba};
 use std::{
     net::Ipv6Addr,
-    sync::{mpsc::Receiver, Arc},
+    sync::Arc,
     time::{Duration, Instant},
 };
 
