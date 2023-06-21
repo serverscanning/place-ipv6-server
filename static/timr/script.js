@@ -1,6 +1,21 @@
 document.addEventListener('DOMContentLoaded', subscribeToCanvas);
 
-document.addEventListener('DOMContentLoaded', canvasXY);
+pps = 0;
+graphCounter = 0;
+user_id = null;
+user_ip = null;
+
+async function getID() {
+    const id = await (await fetch('/my_user_id')).json();
+    if (id['ip'] !== null && id['user_id'] !== null) {
+        user_id = id['user_id'];
+        user_ip = id['ip'];
+    } else {
+        user_id = null;
+        user_ip = null;
+    }
+    console.log('my_user_id: ' + user_id + ' from ' + user_ip);
+}
 
 function canvasXY() {
     const canvasEl = document.getElementById('canvas');
@@ -44,9 +59,6 @@ async function resizeCanvas() {
         console.log('No width/height in serverconfig.json!');
     }
 }
-
-pps = 0;
-graphCounter = 0;
 
 function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction){
     let WIDTH = cvs2.width = w;
@@ -166,6 +178,8 @@ function subscribeToCanvas() {
     console.log('Websocket: Connecting...');
     canvasPpsEl.innerText = 'Connecting...';
     resizeCanvas();
+    canvasXY();
+    getID();
 
     const ws = new WebSocket((document.location.protocol === 'https:' ? 'wss://' : 'ws://') + document.location.host + '/ws');
     ws.binaryType = 'blob';
@@ -222,6 +236,7 @@ function subscribeToCanvas() {
             canvasCtx.drawImage(imageBitmap, 0, 0);
         } else if(typeof(event.data) === 'string') {
             let wsMessage = JSON.parse(event.data);
+            //console.log(wsMessage)
             if (wsMessage.message === 'pps_update') {
                 ppsEntries.push(wsMessage.pps);
                 pps = wsMessage.pps;
