@@ -5,8 +5,23 @@ document.addEventListener('DOMContentLoaded', canvasXY);
 function canvasXY() {
     const canvasEl = document.getElementById('canvas');
     canvasEl.addEventListener('mousemove', (e) => {
-        console.log(e.clientX + 'x' + e.clientY);
         document.getElementById('canvas').setAttribute( 'title', 'canvas:' + e.offsetX + 'x' + e.offsetY);
+        document.getElementById('ipv6-size').innerText = '1';
+        document.getElementById('ipv6-coords-x').innerText = e.offsetX.toString(16).padStart(3,'0');
+        document.getElementById('ipv6-coords-y').innerText = e.offsetY.toString(16);
+        pixel = document.getElementById('canvas').getContext('2d').getImageData(e.offsetX, e.offsetY, 1, 1).data;
+        document.getElementById('ipv6-colors-red').innerText = pixel[0].toString(16);
+        document.getElementById('ipv6-colors-green').innerText = pixel[1].toString(16);
+        document.getElementById('ipv6-colors-blue').innerText = pixel[2].toString(16).padStart(2,'0');
+    });
+    canvasEl.addEventListener('mouseout', (e) => {
+        document.getElementById('canvas').setAttribute( 'title', 'Canvas');
+        document.getElementById('ipv6-coords-x').innerText = 'XXX';
+        document.getElementById('ipv6-coords-y').innerText = 'YYYY';
+        document.getElementById('ipv6-size').innerText = 'S';
+        document.getElementById('ipv6-colors-red').innerText = 'RR';
+        document.getElementById('ipv6-colors-green').innerText = 'GG';
+        document.getElementById('ipv6-colors-blue').innerText = 'BB';
     });
 }
 
