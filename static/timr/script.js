@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', canvasXY);
 function canvasXY() {
     const canvasEl = document.getElementById('canvas');
     canvasEl.addEventListener('mousemove', (e) => {
-        document.getElementById('canvas').setAttribute( 'title', 'canvas:' + e.offsetX + 'x' + e.offsetY);
         document.getElementById('ipv6-size').innerText = '1';
         document.getElementById('ipv6-coords-x').innerText = e.offsetX.toString(16).padStart(3,'0');
         document.getElementById('ipv6-coords-y').innerText = e.offsetY.toString(16);
@@ -13,6 +12,11 @@ function canvasXY() {
         document.getElementById('ipv6-colors-red').innerText = pixel[0].toString(16);
         document.getElementById('ipv6-colors-green').innerText = pixel[1].toString(16);
         document.getElementById('ipv6-colors-blue').innerText = pixel[2].toString(16).padStart(2,'0');
+        document.getElementById('canvas').setAttribute( 'title', 'Canvas: ' +
+		e.offsetX + 'x' + e.offsetY + ' #' +
+	        pixel[0].toString(16).padStart(2,'0') +
+	        pixel[1].toString(16).padStart(2,'0') +
+	        pixel[2].toString(16).padStart(2,'0'));
     });
     canvasEl.addEventListener('mouseout', (e) => {
         document.getElementById('canvas').setAttribute( 'title', 'Canvas');
