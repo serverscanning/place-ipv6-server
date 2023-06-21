@@ -1,6 +1,7 @@
 //! Defines CLI Arguments, help texts, etc.
 
 use clap::Parser;
+use ipnet::IpNet;
 
 fn max_canvas_fps_range(s: &str) -> Result<u16, String> {
     clap_num::number_range(s, 1, 1000)
@@ -32,4 +33,8 @@ pub struct CliArgs {
     /// The first 4 segments to be displayed in frontends for the user. Example: "aaaa:bbbb:cccc:dddd"
     #[arg(short = 'P', long)]
     pub public_prefix: Option<String>,
+
+    /// Allow different IPs in header specified if connecting from these ranges
+    #[arg(long, default_value = "127.0.0.1/8,::1/128", value_delimiter = ',')]
+    pub trusted_proxy_ranges: Vec<IpNet>,
 }

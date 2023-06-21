@@ -11,18 +11,7 @@ mod websocket_handler;
 use crate::canvas::CANVASH;
 use crate::canvas::CANVASW;
 use axum::extract::ConnectInfo;
-use canvas::CanvasState;
-use cli_args::CliArgs;
-use serde::{Deserialize, Serialize};
-
-use std::net::Ipv6Addr;
-use std::{
-    net::{IpAddr, SocketAddr},
-    str::FromStr,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
-
+use axum::http::HeaderMap;
 use axum::{
     extract::{Query, State},
     http::header,
@@ -30,8 +19,19 @@ use axum::{
     routing::get,
     Json, Router,
 };
+use canvas::CanvasState;
 use clap::Parser;
+use cli_args::CliArgs;
 use color_eyre::{eyre::Context, Result};
+use ipnet::IpNet;
+use serde::{Deserialize, Serialize};
+use std::net::Ipv6Addr;
+use std::{
+    net::{IpAddr, SocketAddr},
+    str::FromStr,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 use tower_http::{
     services::ServeDir,
     trace::{DefaultMakeSpan, DefaultOnFailure, TraceLayer},
@@ -46,6 +46,10 @@ struct ServerConfig {
     width: u16,
     height: u16,
     built_with_per_user_pps_support: bool,
+    #[serde(skip)]
+    trusted_proxy_ranges: Vec<IpNet>,
+    #[serde(skip)]
+    trusted_cloudflare_ranges: Vec<IpNet>,
 }
 
 static SERVER_CONFIG: Mutex<ServerConfig> = Mutex::new(ServerConfig {
@@ -57,6 +61,8 @@ static SERVER_CONFIG: Mutex<ServerConfig> = Mutex::new(ServerConfig {
     } else {
         false
     },
+    trusted_proxy_ranges: vec![],
+    trusted_cloudflare_ranges: vec![],
 });
 
 #[tokio::main]
@@ -98,6 +104,34 @@ async fn main() -> Result<()> {
         })?;
 
     SERVER_CONFIG.lock().unwrap().public_prefix = args.public_prefix.clone();
+    SERVER_CONFIG.lock().unwrap().trusted_proxy_ranges = args.trusted_proxy_ranges.clone();
+    // TODO: Add automated way to retreives these ranges. Otherwise this will break at some point or be come a security hole!
+    SERVER_CONFIG.lock().unwrap().trusted_cloudflare_ranges = vec![
+        // https://www.cloudflare.com/ips-v6
+        IpNet::from_str("2400:cb00::/32").unwrap(),
+        IpNet::from_str("2606:4700::/32").unwrap(),
+        IpNet::from_str("2803:f800::/32").unwrap(),
+        IpNet::from_str("2405:b500::/32").unwrap(),
+        IpNet::from_str("2405:8100::/32").unwrap(),
+        IpNet::from_str("2a06:98c0::/29").unwrap(),
+        IpNet::from_str("2c0f:f248::/32").unwrap(),
+        // https://www.cloudflare.com/ips-v4
+        IpNet::from_str("173.245.48.0/20").unwrap(),
+        IpNet::from_str("103.21.244.0/22").unwrap(),
+        IpNet::from_str("103.22.200.0/22").unwrap(),
+        IpNet::from_str("103.31.4.0/22").unwrap(),
+        IpNet::from_str("141.101.64.0/18").unwrap(),
+        IpNet::from_str("108.162.192.0/18").unwrap(),
+        IpNet::from_str("190.93.240.0/20").unwrap(),
+        IpNet::from_str("188.114.96.0/20").unwrap(),
+        IpNet::from_str("197.234.240.0/22").unwrap(),
+        IpNet::from_str("198.41.128.0/17").unwrap(),
+        IpNet::from_str("162.158.0.0/15").unwrap(),
+        IpNet::from_str("104.16.0.0/13").unwrap(),
+        IpNet::from_str("104.24.0.0/14").unwrap(),
+        IpNet::from_str("172.64.0.0/13").unwrap(),
+        IpNet::from_str("131.0.72.0/22").unwrap(),
+    ];
 
     let app = Router::new()
         .route("/ws", get(websocket_handler::get_ws))
@@ -114,6 +148,11 @@ async fn main() -> Result<()> {
     let webserver_addr = SocketAddr::new(
         IpAddr::from_str(&args.bind).context("Parsing ip to bind webserver to")?,
         args.port,
+    );
+
+    info!(
+        "Will trust proxies from these Ranges (in addition to CloudFlare's) to not lie about the source ip: {:?}",
+        args.trusted_proxy_ranges
     );
 
     info!(
@@ -173,7 +212,10 @@ enum MyUserIdResponse {
 }
 
 #[cfg_attr(not(feature = "my_feature"), allow(unused_variables))]
-async fn get_my_user_id(ConnectInfo(addr): ConnectInfo<SocketAddr>) -> Json<MyUserIdResponse> {
+async fn get_my_user_id(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<MyUserIdResponse> {
     // TODO: Support cloudflare headers (to not require querying the raw addr each time)
     // TODO: Return proper status code for errors. Doesn't work with conditional compilation and using (Json<...>, StatusCode) for some reason!
 
@@ -183,9 +225,9 @@ async fn get_my_user_id(ConnectInfo(addr): ConnectInfo<SocketAddr>) -> Json<MyUs
     });
     #[cfg(feature = "per_user_pps")]
     return {
-        let user_ip = match addr {
-            SocketAddr::V4(_) => None,
-            SocketAddr::V6(ipv6_addr) => Some(ipv6_addr.ip().clone()),
+        let user_ip = match get_real_ip(addr.ip(), &headers) {
+            IpAddr::V4(_) => None,
+            IpAddr::V6(ipv6_addr) => Some(ipv6_addr.clone()),
         };
         if let Some(user_ip) = user_ip {
             let mut pps_users = per_user_pps::PPS_USERS.lock().unwrap();
@@ -204,4 +246,41 @@ async fn get_my_user_id(ConnectInfo(addr): ConnectInfo<SocketAddr>) -> Json<MyUs
             })
         }
     };
+}
+
+pub fn get_real_ip(connected_from_ip_addr: IpAddr, headers: &HeaderMap) -> IpAddr {
+    find_real_ip_from_headers(connected_from_ip_addr, headers).unwrap_or(connected_from_ip_addr)
+}
+
+fn find_real_ip_from_headers(
+    connected_from_ip_addr: IpAddr,
+    headers: &HeaderMap,
+) -> Option<IpAddr> {
+    let server_config = SERVER_CONFIG.lock().unwrap();
+    if !server_config
+        .trusted_proxy_ranges
+        .iter()
+        .any(|range| range.contains(&connected_from_ip_addr))
+        && !server_config
+            .trusted_cloudflare_ranges
+            .iter()
+            .any(|range| range.contains(&connected_from_ip_addr))
+    {
+        // We don't trust any headers this person gives us that could change the real ip
+        return None;
+    }
+    drop(server_config);
+
+    if let Some(x_forwarded_for) = headers
+        .get("X-Forwarded-For")
+        .or(headers.get("x-forwarded-for"))
+    {
+        let x_forwarded_for = x_forwarded_for.to_str().ok()?;
+        return Some(IpAddr::from_str(x_forwarded_for.replace(" ", "").split(",").next()?).ok()?);
+    }
+    if let Some(x_real_ip) = headers.get("X-Real-IP").or(headers.get("x-real-ip")) {
+        let x_real_ip = x_real_ip.to_str().ok()?;
+        return Some(IpAddr::from_str(x_real_ip).ok()?);
+    }
+    todo!()
 }

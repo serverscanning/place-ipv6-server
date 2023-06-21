@@ -7,6 +7,7 @@ use axum::{
         ws::{Message, WebSocket},
         ConnectInfo, State, WebSocketUpgrade,
     },
+    http::HeaderMap,
     response::Response,
 };
 use color_eyre::{eyre::Context, Result};
@@ -42,7 +43,11 @@ pub async fn get_ws(
     ws: WebSocketUpgrade,
     State(canvas_state): State<Arc<CanvasState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
 ) -> Response {
+    // This IP:Port combination will not be bogus (port may not be from real ip),
+    // but should serve as a somewhat decent identifier for connections.
+    let addr = SocketAddr::new(crate::get_real_ip(addr.ip(), &headers), addr.port());
     ws.on_upgrade(move |ws| on_websocket_upgrade(ws, canvas_state, addr))
 }
 
