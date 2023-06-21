@@ -3,15 +3,19 @@
 mod canvas;
 mod canvas_processor;
 mod cli_args;
+#[cfg(feature = "per_user_pps")]
+mod per_user_pps;
 mod ping_listener;
 mod websocket_handler;
 
 use crate::canvas::CANVASH;
 use crate::canvas::CANVASW;
+use axum::extract::ConnectInfo;
 use canvas::CanvasState;
 use cli_args::CliArgs;
 use serde::{Deserialize, Serialize};
 
+use std::net::Ipv6Addr;
 use std::{
     net::{IpAddr, SocketAddr},
     str::FromStr,
@@ -41,12 +45,18 @@ struct ServerConfig {
     public_prefix: Option<String>,
     width: u16,
     height: u16,
+    built_with_per_user_pps_support: bool,
 }
 
 static SERVER_CONFIG: Mutex<ServerConfig> = Mutex::new(ServerConfig {
     public_prefix: None,
     height: CANVASH,
     width: CANVASW,
+    built_with_per_user_pps_support: if cfg!(feature = "per_user_pps") {
+        true
+    } else {
+        false
+    },
 });
 
 #[tokio::main]
@@ -93,6 +103,7 @@ async fn main() -> Result<()> {
         .route("/ws", get(websocket_handler::get_ws))
         .route("/canvas.png", get(get_canvas))
         .route("/serverconfig.json", get(get_server_config))
+        .route("/my_user_id", get(get_my_user_id))
         .fallback_service(ServeDir::new("./static"))
         .with_state(canvas_state)
         .layer(
@@ -141,4 +152,53 @@ async fn get_canvas(
 
 async fn get_server_config() -> Json<ServerConfig> {
     Json(SERVER_CONFIG.lock().unwrap().clone())
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum MyUserIdResponse {
+    #[cfg(feature = "per_user_pps")]
+    Success {
+        ip: Ipv6Addr,
+        user_id: u64,
+    },
+    Error {
+        error: String,
+    },
+    ErrorWithIp {
+        ip: Ipv6Addr,
+        error: String,
+    },
+}
+
+async fn get_my_user_id(ConnectInfo(addr): ConnectInfo<SocketAddr>) -> Json<MyUserIdResponse> {
+    // TODO: Support cloudflare headers (to not require querying the raw addr each time)
+
+    #[cfg(not(feature = "per_user_pps"))]
+    return Json(MyUserIdResponse::Error {
+        error: String::from("This server was not built with the per_user_pps feature enabled!"),
+    });
+    #[cfg(feature = "per_user_pps")]
+    return {
+        let user_ip = match addr {
+            SocketAddr::V4(_) => None,
+            SocketAddr::V6(ipv6_addr) => Some(ipv6_addr.ip().clone()),
+        };
+        if let Some(user_ip) = user_ip {
+            let mut pps_users = per_user_pps::PPS_USERS.lock().unwrap();
+            let maybe_user_info = per_user_pps::find_user_info_data(&mut pps_users, user_ip);
+            if let Some(user_info) = maybe_user_info {
+                Json(MyUserIdResponse::Success {
+                    ip: user_ip,
+                    user_id: user_info.get_user_id().id,
+                })
+            } else {
+                Json(MyUserIdResponse::ErrorWithIp { ip: user_ip, error: String::from("Didn't find any user id for your ip. Either you never pinged this server or it was too long ago.") })
+            }
+        } else {
+            Json(MyUserIdResponse::Error {
+                error: String::from("You're not using an IPv6 address!"),
+            })
+        }
+    };
 }

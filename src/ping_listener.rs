@@ -217,7 +217,7 @@ pub fn run_ping_listener(
         match res {
             Ok(Some(ip_info)) => {
                 //info!("Got ping from {} to {}", ip_info.src_ip, ip_info.dest_ip);
-                let pixel_info: Option<PixelInfo> = PixelInfo::from_addr(ip_info.dest_ip);
+                let pixel_info: Option<PixelInfo> = PixelInfo::from_ip_info(ip_info);
                 if let Some(pixel_info) = pixel_info {
                     pixel_sender.send(pixel_info).ok();
                 }
