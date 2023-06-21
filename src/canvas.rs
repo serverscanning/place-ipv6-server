@@ -10,16 +10,25 @@ use std::{
 
 use color_eyre::{eyre::ensure, Result};
 use image::{codecs::png::PngEncoder, DynamicImage, GenericImageView, ImageEncoder};
+use serde::Serialize;
 use tokio::sync::{
     broadcast::{Receiver, Sender},
     RwLock, RwLockReadGuard,
 };
 
+#[derive(Serialize, Clone)]
+pub struct PpsInfo {
+    /// Total
+    pub pps: usize,
+    #[cfg(feature = "per_user_pps")]
+    pub per_user_pps: fxhash::FxHashMap<u64, usize>,
+}
+
 pub struct CanvasState {
     /// Base64 of png, starting with "data:image/png;base64," to denote this
     encoded_full_canvas: RwLock<EncodedCanvas>,
     encoded_delta_canvas: RwLock<EncodedCanvas>,
-    pps_publisher: Sender<usize>,
+    pps_publisher: Sender<PpsInfo>,
     ws_connection_count: Arc<AtomicUsize>,
     ws_connection_count_publisher: Sender<usize>,
 }
@@ -49,11 +58,11 @@ impl CanvasState {
         self.encoded_delta_canvas.blocking_write().update(canvas)
     }
 
-    pub fn update_pps(&self, pps: usize) {
+    pub fn update_pps(&self, pps: PpsInfo) {
         self.pps_publisher.send(pps).ok();
     }
 
-    pub fn subscribe_to_pps(&self) -> Receiver<usize> {
+    pub fn subscribe_to_pps(&self) -> Receiver<PpsInfo> {
         self.pps_publisher.subscribe()
     }
 
@@ -80,10 +89,12 @@ impl Default for CanvasState {
     fn default() -> Self {
         Self {
             encoded_full_canvas: RwLock::new(
-                EncodedCanvas::new(&DynamicImage::new_rgb8(CANVASW.into(), CANVASH.into())).unwrap(),
+                EncodedCanvas::new(&DynamicImage::new_rgb8(CANVASW.into(), CANVASH.into()))
+                    .unwrap(),
             ),
             encoded_delta_canvas: RwLock::new(
-                EncodedCanvas::new(&DynamicImage::new_rgba8(CANVASW.into(), CANVASH.into())).unwrap(),
+                EncodedCanvas::new(&DynamicImage::new_rgba8(CANVASW.into(), CANVASH.into()))
+                    .unwrap(),
             ),
             pps_publisher: tokio::sync::broadcast::channel(64).0,
             ws_connection_count: Arc::new(AtomicUsize::new(0)),

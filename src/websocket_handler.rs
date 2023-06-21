@@ -12,7 +12,7 @@ use axum::{
 use color_eyre::{eyre::Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::canvas::CanvasState;
+use crate::canvas::{CanvasState, PpsInfo};
 
 /// Client -> Server
 #[derive(Deserialize)]
@@ -29,8 +29,13 @@ enum WsRequest {
 #[derive(Serialize)]
 #[serde(tag = "message", rename_all = "snake_case")]
 enum WsMessage {
-    PpsUpdate { pps: usize },
-    WsCountUpdate { ws_connections: usize },
+    PpsUpdate {
+        #[serde(flatten)]
+        pps_info: PpsInfo,
+    },
+    WsCountUpdate {
+        ws_connections: usize,
+    },
 }
 
 pub async fn get_ws(
@@ -71,9 +76,9 @@ async fn websocket_connection(
                     ws.send(Message::Binary(encoded_delta_canvas_res.context("Receive encoded delta canvas")?)).await.context("Send encoded delta canvas")?;
                 }
             }
-            pps_res = pps_receiver.recv() => {
+            pps_info_res = pps_receiver.recv() => {
                 if pps_updates_enabled {
-                    let message = WsMessage::PpsUpdate { pps: pps_res.context("Receive pps update")? };
+                    let message = WsMessage::PpsUpdate { pps_info: pps_info_res.context("Receive pps update")? };
                     ws.send(Message::Text(serde_json::to_string(&message).context("Encode pps update")?)).await.context("Send pps update")?;
                 }
             }

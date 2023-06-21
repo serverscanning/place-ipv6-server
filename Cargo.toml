@@ -12,6 +12,10 @@ authors = [ "EnderKill98" ]
 lto = "fat"
 codegen-units = 1
 
+[features]
+default = [ "per_user_pps" ]
+per_user_pps = [ "fxhash", "once_cell" ]
+
 [dependencies]
 # Basics
 tracing = "0.1.37"
@@ -21,6 +25,8 @@ clap = { version = "4.3.1", features = [ "derive" ] }
 clap-num = "1.0.2"
 image = "0.24.6"
 crossbeam-channel = "0.5.8"
+fxhash = { version = "0.2.1", optional = true }
+once_cell = { version = "1.18.0", optional = true }
 
 # Webserver & Async stuff
 tokio = { version = "1.28.2", features = [ "macros", "rt-multi-thread" ] }
