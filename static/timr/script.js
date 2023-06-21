@@ -155,7 +155,7 @@ function tmGraph(cvs2, w, h, bs, bsy, gf, fg, df, dataFunction){
 
 function subscribeToCanvas() {
     const canvasEl = document.getElementById('canvas');
-    const canvasCtx = canvasEl.getContext('2d');
+    const canvasCtx = canvasEl.getContext('2d', { willReadFrequently: true });
     const canvasPpsEl = document.getElementById('canvas-pps');
     let dr = false;
 
