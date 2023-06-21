@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Per User PPS Graph Example</title>
+
+    <script type="text/javascript" src="https://unpkg.com/dygraphs@2.2.1/dist/dygraph.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/dygraphs@2.2.1/dist/dygraph.min.css" />
+
+    <style>
+        body {
+            padding: 5px 5px;
+            background-color: #161616;
+        }
+
+        #container {
+            position: relative;
+            width: 100%;
+        }
+
+        #graph-container{
+            max-width: 100%;
+            min-width: 100%;
+        }
+
+        /* Source for impromptu Dark Mode: https://github.com/mpx200/ng-dygraphs/issues/34#issuecomment-840028617 */
+        /* Chart background */
+        /* Legend */
+        #graph-legend {
+        color: #fff ;
+        }
+
+        /* Title: */
+        .dygraph-label, .dygraph-title{
+        color:#fff;
+        }
+        /* x-axis label: */ 
+        .dygraph-label, .dygraph-xlabel{
+        color:#fff;
+        }
+        /* y-axis label: */ 
+        .dygraph-label, .dygraph-ylabel{
+        color:#fff;
+        }
+        /* y2-axis label: */
+        .dygraph-label, .dygraph-y2label{
+        color:#fff;
+        }
+        /* x-axis label: */
+        .dygraph-axis-label, .dygraph-axis-label-x{
+        color:#fff;
+        }
+        /* y-axis label: */ 
+        .dygraph-axis-label, .dygraph-axis-label-y{
+        color:#fff;
+        }
+        /* y2-axis label */
+        .dygraph-axis-label, .dygraph-axis-label-y, .dygraph-axis-label-y2{
+        color:#fff;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div id="graph-container"></div>
+        <div id="graph-legend"></div>
+    </div>
+
+    <script type="text/javascript">
+        function formatNumber(number, padToMinDigits) {
+            let numberStrRev = (number + "").split("").reverse().join("");
+            while (numberStrRev.length < padToMinDigits) numberStrRev += "0";
+            let newNumberStrRev = "";
+            for (const i in numberStrRev) {
+                if (i > 0 && i % 3 == 0) newNumberStrRev += ",";
+                newNumberStrRev += numberStrRev[i];
+            }
+            return newNumberStrRev.split("").reverse().join("");
+        }
+
+        // Establish a WebSocket connection
+        document.addEventListener("DOMContentLoaded", () => {
+            const socket = new WebSocket((document.location.protocol === "https:" ? "wss://" : "ws://") + document.location.host + "/ws");
+
+            const userIds = [];
+
+            // Create a Dygraph instance with an empty dataset
+            const graph = new Dygraph(document.getElementById('graph-container'), [], {
+                width: "100%",
+                labels: ['Time', ...userIds],
+                stackedGraph: true,
+                //drawPoints: true,
+                //showRoller: true,
+                valueRange: null, // Allow Dygraph to automatically determine the Y-axis scale
+                labelsDiv: "graph-legend",
+                labelsSeparateLines: true,
+                labelsShowZeroValues: false,
+                // Some green while reducing the S of HSV by 10 each:
+                colors: [ "#00ff32", "#19ff47", "#33ff5b", "#4dff70", "#66ff84", "#80ff99" ],
+
+                // Make numbers look nicer by formatting them
+                valueFormatter: (value, opts, seriesName, dygraphInstance, row, column) => {
+                    if(column === 0) return new Date(value).toISOString();
+                    return formatNumber(value);
+                },
+                axes: {
+                    y: {
+                        axisLabelFormatter: (value) => formatNumber(value),
+                    }
+                }
+            });
+
+            // Handle WebSocket open event
+            socket.onopen = () => {
+                socket.send(JSON.stringify({ request: "pps_updates", enabled: true }));
+                console.log('WebSocket connection established.');
+            };
+
+            const slidingWindowDuration = 60 * 1000; // 60 Seconds
+
+            // Handle WebSocket message event
+            socket.onmessage = (event) => {
+                // Parse the received data (assuming it's in JSON format)
+                const receivedData = JSON.parse(event.data)["per_user_pps"];
+
+                // Get the current date and time
+                const currentTime = new Date();
+
+                let changedLabel = false;
+                let lastUserIdsLength = userIds.length;
+                // Add missing userIds to label
+                for (const userId in receivedData) {
+                    if(!userIds.includes(userId)) {
+                        userIds.push(userId);
+                        changedLabel = true;
+                    }
+                }
+
+                // Compact the legend if total user ids just went over 30
+                if(lastUserIdsLength <= 30 && userIds.length > 30) {
+                    graph.updateOptions({
+                        labelsSeparateLines: true,
+                    });
+                }
+
+                // Generate an array of data points for the Dygraph chart
+                const dataPoints = [currentTime];
+                for(const expectedUserId of userIds) {
+                    dataPoints.push(receivedData[expectedUserId] || 0);
+                }
+
+                // Append the new data point to the Dygraph dataset
+                if (changedLabel) graph.updateOptions({ labels: ["Time", ...userIds] });
+                    // Calculate the start time for the sliding window
+                const startTime = currentTime - slidingWindowDuration;
+
+                let file = graph.file_;
+                // Fill past dataPoints with 0 to match size of current dataPoints
+                for(const oldDataPoints of file) {
+                    while (oldDataPoints.length < dataPoints.length)
+                        oldDataPoints.push(0);
+                }
+
+                // Remove old entries (older than 2x slidingWindowDuration)
+                while(file.length > 0 && file[0][0] < currentTime - slidingWindowDuration * 2) {
+                    file.splice(0, 1);
+                }
+
+                // Set the date window to display the sliding window duration
+                graph.updateOptions({
+                    file: file.concat([dataPoints]),
+                    dateWindow: [startTime, currentTime],
+                });
+            };
+
+            // Handle WebSocket close event
+            socket.onclose = () => {
+                console.log('WebSocket connection closed.');
+            };
+        });
+</script>
+</body>
+
+</html>
