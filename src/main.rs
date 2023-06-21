@@ -165,14 +165,17 @@ enum MyUserIdResponse {
     Error {
         error: String,
     },
+    #[cfg_attr(not(feature = "my_feature"), allow(unused))]
     ErrorWithIp {
         ip: Ipv6Addr,
         error: String,
     },
 }
 
+#[cfg_attr(not(feature = "my_feature"), allow(unused_variables))]
 async fn get_my_user_id(ConnectInfo(addr): ConnectInfo<SocketAddr>) -> Json<MyUserIdResponse> {
     // TODO: Support cloudflare headers (to not require querying the raw addr each time)
+    // TODO: Return proper status code for errors. Doesn't work with conditional compilation and using (Json<...>, StatusCode) for some reason!
 
     #[cfg(not(feature = "per_user_pps"))]
     return Json(MyUserIdResponse::Error {
