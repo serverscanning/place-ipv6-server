@@ -71,7 +71,7 @@ async fn main() -> Result<()> {
 
     if std::env::var("RUST_LOG").is_err() {
         // Set default logging level if none specified using the environment variable "RUST_LOG"
-        std::env::set_var("RUST_LOG", "debug,hyper=info")
+        std::env::set_var("RUST_LOG", "debug,hyper=info,nude=off")
     }
     tracing_subscriber::fmt::init();
 
