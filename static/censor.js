@@ -4,6 +4,7 @@ censorState = {
     censorEl: null,
     windowResizeHandler: null,
     originalParentHref: null,
+    resizeObserver: null,
 }
 
 function censorCanvas(description, { title = "Unsafe content ahead!", descriptionIsHtml = false, canvasEl = undefined } = {}) {
@@ -118,6 +119,8 @@ function censorCanvas(description, { title = "Unsafe content ahead!", descriptio
     reposition();
     censorState.windowResizeHandler = reposition;
     window.addEventListener("resize", reposition);
+    censorState.resizeObserver = new ResizeObserver(reposition);
+    censorState.resizeObserver.observe(canvasEl);
 
     console.log("Censored Canvas: " + description)
 }
@@ -137,6 +140,11 @@ function uncensorCanvas() {
         window.removeEventListener("resize", censorState.windowResizeHandler);
         censorState.windowResizeHandler = null;
     }
+    if (censorState.resizeObserver !== null) {
+        resizeObserver.unobserve(censorState.canvasEl)
+        censorState.resizeObserver = null;
+    }
 
+    censorState.canvasEl = null;
     console.log("Uncensored canvas!");
 }
