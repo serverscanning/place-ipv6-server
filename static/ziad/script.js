@@ -185,7 +185,7 @@ function subscribeToCanvas() {
                     censorCanvas("The server detected nudity!", { canvasEl });
                 } else {
                     console.log("The server reports the image not nude (anymore).");
-                    uncensorCanvas({ canvasEl });
+                    uncensorCanvas();
                 }
             }
         } else {
