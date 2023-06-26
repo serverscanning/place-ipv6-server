@@ -54,7 +54,6 @@ function censorCanvas(description, { title = "Unsafe content ahead!", descriptio
     hideCensorButton.innerText = "Show anyway";
 
     const hideCensorForeverContainer = document.createElement("div");
-    hideCensorForeverContainer.style.margin = "3px 0";
     const hideCensorForeverCheckbox = document.createElement("input")
     hideCensorForeverCheckbox.type = "checkbox";
     hideCensorForeverCheckbox.id = "hide-censor-forever-" + Math.floor(10000 * Math.random());
