@@ -24,6 +24,8 @@ enum WsRequest {
     PpsUpdates { enabled: bool },
     WsCountUpdates { enabled: bool },
     GetWsCountUpdateOnce,
+    NudityUpdates { enabled: bool },
+    GetNudityUpdateOnce,
 }
 
 /// Server -> Client
@@ -36,6 +38,9 @@ enum WsMessage {
     },
     WsCountUpdate {
         ws_connections: usize,
+    },
+    NudityUpdate {
+        is_nude: bool,
     },
 }
 
@@ -69,10 +74,12 @@ async fn websocket_connection(
     let mut delta_canvas_receiver = canvas_state.read_encoded_delta_canvas().await.subscribe();
     let mut pps_receiver = canvas_state.subscribe_to_pps();
     let mut ws_count_receiver = canvas_state.subscribe_to_websocket_count();
+    let mut nudity_results_receiver = canvas_state.subscribe_to_nudity_results();
 
     let mut delta_canvas_stream_enabled = false;
     let mut pps_updates_enabled = false;
     let mut ws_count_updates_enabled = false;
+    let mut nudity_updates_enabled = false;
 
     loop {
         tokio::select! {
@@ -91,6 +98,12 @@ async fn websocket_connection(
                 if ws_count_updates_enabled {
                     let message = WsMessage::WsCountUpdate { ws_connections: ws_count_res.context("Receive ws count update")? };
                     ws.send(Message::Text(serde_json::to_string(&message).context("Encode ws count update")?)).await.context("Send ws count update")?;
+                }
+            }
+            nudity_result_res = nudity_results_receiver.recv() => {
+                if nudity_updates_enabled {
+                    let message = WsMessage::NudityUpdate { is_nude: nudity_result_res.context("Receive nudity update")?.is_nude };
+                    ws.send(Message::Text(serde_json::to_string(&message).context("Encode nudity update")?)).await.context("Send nudity update")?;
                 }
             }
             maybe_ws_message_res = ws.recv() => {
@@ -127,6 +140,15 @@ async fn websocket_connection(
                                 debug!("Websocket: {addr} requested ws count once");
                                 let message = WsMessage::WsCountUpdate { ws_connections: canvas_state.websocket_count() };
                                 ws.send(Message::Text(serde_json::to_string(&message).context("Encode ws count update")?)).await.context("Send ws count update")?;
+                            },
+                            WsRequest::NudityUpdates { enabled } => {
+                                nudity_updates_enabled = enabled;
+                                debug!("Websocket: {addr} {} nudity result updates", if enabled { "enabled" } else { "disabled" })
+                            },
+                            WsRequest::GetNudityUpdateOnce => {
+                                debug!("Websocket: {addr} requested nudity result once");
+                                let message = WsMessage::NudityUpdate { is_nude: canvas_state.nudity_result().await.is_nude };
+                                ws.send(Message::Text(serde_json::to_string(&message).context("Encode nudity update")?)).await.context("Send nudity update")?;
                             },
                         }
                     }

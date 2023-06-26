@@ -24,6 +24,11 @@ pub struct PpsInfo {
     pub per_user_pps: fxhash::FxHashMap<u64, usize>,
 }
 
+#[derive(Copy, Clone)]
+pub struct NudityResult {
+    pub is_nude: bool,
+}
+
 pub struct CanvasState {
     /// Base64 of png, starting with "data:image/png;base64," to denote this
     encoded_full_canvas: RwLock<EncodedCanvas>,
@@ -31,6 +36,8 @@ pub struct CanvasState {
     pps_publisher: Sender<PpsInfo>,
     ws_connection_count: Arc<AtomicUsize>,
     ws_connection_count_publisher: Sender<usize>,
+    nudity_result: RwLock<NudityResult>,
+    nudity_result_publisher: Sender<NudityResult>,
 }
 
 impl CanvasState {
@@ -80,6 +87,19 @@ impl CanvasState {
     pub fn websocket_count(&self) -> usize {
         self.ws_connection_count.load(Ordering::Relaxed)
     }
+
+    pub fn subscribe_to_nudity_results(&self) -> Receiver<NudityResult> {
+        self.nudity_result_publisher.subscribe()
+    }
+
+    pub async fn nudity_result(&self) -> NudityResult {
+        self.nudity_result.read().await.clone()
+    }
+
+    pub fn blocking_update_nudity_result(&self, new_nudity_result: NudityResult) {
+        *self.nudity_result.blocking_write() = new_nudity_result;
+        self.nudity_result_publisher.send(new_nudity_result).ok();
+    }
 }
 
 pub(crate) const CANVASW: u16 = 512;
@@ -99,6 +119,8 @@ impl Default for CanvasState {
             pps_publisher: tokio::sync::broadcast::channel(64).0,
             ws_connection_count: Arc::new(AtomicUsize::new(0)),
             ws_connection_count_publisher: tokio::sync::broadcast::channel(64).0,
+            nudity_result: RwLock::new(NudityResult { is_nude: false }),
+            nudity_result_publisher: tokio::sync::broadcast::channel(64).0,
         }
     }
 }

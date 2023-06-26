@@ -97,6 +97,7 @@ async fn main() -> Result<()> {
                 pixel_receiver,
                 canvas_state_clone,
                 Duration::from_nanos(1_000_000_000 / args.max_canvas_fps as u64),
+                args.nude_scan_interval,
             ) {
                 error!("Canvas-Processor crashed: {err:#}");
                 std::process::exit(1);

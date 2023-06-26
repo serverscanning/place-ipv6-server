@@ -37,4 +37,8 @@ pub struct CliArgs {
     /// Allow different IPs in header specified if connecting from these ranges
     #[arg(long, default_value = "127.0.0.1/8,::1/128", value_delimiter = ',')]
     pub trusted_proxy_ranges: Vec<IpNet>,
+
+    /// How often to scan for nudes (every N frames). 0 disables the check.
+    #[arg(short, long, default_value = "10")]
+    pub nude_scan_interval: u16,
 }

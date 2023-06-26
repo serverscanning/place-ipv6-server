@@ -23,6 +23,8 @@ When connecting to the Websocket, by default it will not send you any data and j
 - `{ "request": "pps_updates", "enabled": <bool> }`: Turn on receiving pps updates every second (text message like this: `{ "message": "pps_update", "pps" <number> }`)
 - `{ "request": "get_ws_count_update_once" }`: Receive a WS Count Update once (text message like this: `{ "message": "ws_count_update", "ws_connections" <number> }`)
 - `{ "request": "ws_count_updates", "enabled": <bool> }`: Enable receiving ws count updates when it changes. Messages will look the same as for `get_ws_count_update_once`
+- `{ "request": "get_nudity_update_once" }`: Receive a Nudity Update once (text message like this: `{ "message": "nudity_update", "is_nude" <bool> }`)
+- `{ "request": "nudity_updates", "enabled": <bool> }`: Enable receiving nudity updates when it changes. Messages will look the same as for `get_nudity_update_once`
 
 ## Frontend
 
