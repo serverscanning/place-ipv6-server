@@ -84,7 +84,7 @@ function censorCanvas(description, { title = "Unsafe content ahead!", descriptio
         censorWrapperContainerEl.style.top = `calc(${canvasEl.offsetTop}px + ${canvasComputedStyle.marginTop} + ${canvasComputedStyle.paddingTop} + ${canvasComputedStyle.borderTopWidth})`;
         censorWrapperContainerEl.style.width = canvasEl.clientWidth + "px";
         censorWrapperContainerEl.style.height = canvasEl.clientHeight + "px";
-        censorWrapperContainerEl.style.fontSize = canvasEl.clientWidth / 25 + "px";
+        censorWrapperContainerEl.style.fontSize = canvasEl.clientWidth / 30 + "px";
         censorWrapperContainerEl.style.backdropFilter = "blur(" + canvasEl.clientWidth / 20 + "px)";
     }
     reposition();
