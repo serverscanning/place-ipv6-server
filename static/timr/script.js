@@ -193,7 +193,7 @@ function subscribeToCanvas() {
         ws.send(JSON.stringify({ request: 'get_full_canvas_once' }));
         ws.send(JSON.stringify({ request: 'pps_updates', enabled: true }));
         ws.send(JSON.stringify({ request: 'ws_count_updates', enabled: true }));
-        ws.send(JSON.stringify({ request: 'get_ws_count_update_once', enabled: true }));
+        ws.send(JSON.stringify({ request: 'get_ws_count_update_once' }));
 
         dr = tmGraph(document.querySelector('#c6'), 800, 79, 25, 25, '#008040', 'red', 2, (gc)=>{
                 return [pps, ws_count];
