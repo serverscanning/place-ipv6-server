@@ -82,8 +82,10 @@ function censorCanvas(description, { title = "Unsafe content ahead!", descriptio
         // Update position (over canvas)
         censorWrapperContainerEl.style.left = `calc(${canvasEl.offsetLeft}px + ${canvasComputedStyle.marginLeft} + ${canvasComputedStyle.paddingLeft} + ${canvasComputedStyle.borderLeftWidth})`;
         censorWrapperContainerEl.style.top = `calc(${canvasEl.offsetTop}px + ${canvasComputedStyle.marginTop} + ${canvasComputedStyle.paddingTop} + ${canvasComputedStyle.borderTopWidth})`;
-        censorWrapperContainerEl.style.width = canvasEl.width + "px";
-        censorWrapperContainerEl.style.height = canvasEl.height + "px";
+        censorWrapperContainerEl.style.width = canvasEl.clientWidth + "px";
+        censorWrapperContainerEl.style.height = canvasEl.clientHeight + "px";
+        censorWrapperContainerEl.style.fontSize = canvasEl.clientWidth / 25 + "px";
+        censorWrapperContainerEl.style.backdropFilter = "blur(" + canvasEl.clientWidth / 20 + "px)";
     }
     reposition();
     censorState.windowResizeHandler = reposition;

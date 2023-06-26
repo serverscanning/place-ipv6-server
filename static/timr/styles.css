@@ -113,6 +113,8 @@ a:visited {
 #canvas {
   border: 2px solid black;
   box-shadow: 3px 3px #000;
+  width: 768px;
+  height: 768px;
 }
 
 #phackerstyle {
