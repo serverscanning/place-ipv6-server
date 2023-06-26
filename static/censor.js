@@ -9,6 +9,7 @@ censorState = {
 function censorCanvas(description, { title = "Unsafe content ahead!", descriptionIsHtml = false, canvasEl = undefined } = {}) {
     if (localStorage.getItem("hide_censor_forever") === "true") {
         console.log("WARN: Not censoring canvas because the user has disabled censoring forever!");
+        return;
     }
     if (censorState.isCensored) uncensorCanvas({ canvasEl });
     console.log("Censoring canvas...");
