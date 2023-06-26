@@ -12,7 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::canvas::CANVASW;
+use crate::canvas::{NudityResult, CANVASW};
 use crate::canvas::{PpsInfo, CANVASH};
 use crate::{canvas::CanvasState, ping_listener::IpInfo};
 
@@ -73,6 +73,7 @@ pub fn run_canvas_processor(
     pixel_receiver: Receiver<PixelInfo>,
     canvas_state: Arc<CanvasState>,
     update_interval: Duration,
+    nudity_scan_interval: u16,
 ) -> Result<()> {
     let mut canvas = DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
         CANVASW.into(),
@@ -91,6 +92,9 @@ pub fn run_canvas_processor(
     #[cfg(feature = "per_user_pps")]
     let mut per_user_pps_last_cleaned = Instant::now();
 
+    let mut nudity_interval_counter: u64 = 0;
+    let mut nudity_last_result_is_nude = false;
+    let mut nudity_changed_since_last_scan = false;
     for tick in crossbeam_channel::tick(update_interval) {
         let now = tick;
 
@@ -184,6 +188,35 @@ pub fn run_canvas_processor(
                 }
             }
             pending_update = true;
+        }
+
+        if pending_update {
+            nudity_changed_since_last_scan = true;
+        }
+
+        let do_nudity_scan = if nudity_scan_interval != 0 {
+            nudity_interval_counter += 1;
+            if nudity_interval_counter >= nudity_scan_interval as u64
+                && nudity_changed_since_last_scan
+            {
+                nudity_interval_counter = 0;
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        if do_nudity_scan {
+            nudity_changed_since_last_scan = false;
+            let analysis = nude::scan(&canvas).analyse();
+            if analysis.nude != nudity_last_result_is_nude {
+                canvas_state.blocking_update_nudity_result(NudityResult {
+                    is_nude: analysis.nude,
+                });
+                nudity_last_result_is_nude = analysis.nude;
+            }
         }
 
         if pending_update {
