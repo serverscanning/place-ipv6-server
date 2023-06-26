@@ -109,7 +109,7 @@ function uncensorCanvas() {
         censorState.windowResizeHandler = null;
     }
     if (censorState.resizeObserver !== null) {
-        resizeObserver.unobserve(censorState.canvasEl)
+        censorState.resizeObserver.unobserve(censorState.canvasEl)
         censorState.resizeObserver = null;
     }
 
