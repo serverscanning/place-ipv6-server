@@ -187,6 +187,8 @@ function subscribeToCanvas() {
         console.log('Websocket: Connected');
         canvasPpsEl.innerText = 'Connected';
 
+        ws.send(JSON.stringify({ request: 'nudity_updates', enabled: true }));
+        ws.send(JSON.stringify({ request: 'get_nudity_update_once' }));
         ws.send(JSON.stringify({ request: 'delta_canvas_stream', enabled: true }));
         ws.send(JSON.stringify({ request: 'get_full_canvas_once' }));
         ws.send(JSON.stringify({ request: 'pps_updates', enabled: true }));
@@ -256,6 +258,14 @@ function subscribeToCanvas() {
                 if (ws_count > ws_max)
                     ws_max = ws_count;
                 //console.log('WSC: ' + ws_count + ' / ' + ws_max);
+            } else if (wsMessage.message === 'nudity_update') {
+                if (wsMessage.is_nude) {
+                    console.log("WARN: The server reports the image is/became nude!");
+                    censorCanvas("The server detected nudity!");
+                } else {
+                    console.log("The server reports the image not nude (anymore).");
+                    uncensorCanvas();
+                }
             }
         } else {
             console.error('Received invalid type ws data: ' + typeof (event.data));
