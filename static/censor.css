@@ -1,9 +1,11 @@
+/* Wrapper div */
 #censor {
     position: absolute;
     backdrop-filter: blur(35px);
     /*left, top, width and height are set and kept-update by censor.js */
 }
 
+/* Inner div with content inside */
 #censor > div {
     padding: 5px;
     width: 100%;
@@ -15,20 +17,20 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-
 }
 
+/* Default text styles */
 #censor * {
-    /* Default text styles */
     color: white;
     text-shadow: 1px 1px 0px black;
 }
 
+/* Title */
 #censor h1 {
     color: red;
 }
 
-#censor > div > a {
+#censor .button {
     box-shadow: 1px 1px 0px black;
     border: 1px solid white;
     border-radius: 5px;
@@ -41,10 +43,11 @@
     cursor: pointer;
 }
 
-#censor > div > div > div {
+/* Checkbox and label container */
+#censor #hide-censor-forever {
     margin: 3px 0;
 }
 
-#censor > div > div > div > label {
+#censor #hide-censor-forever > label {
     font-size: 10pt;
 }
