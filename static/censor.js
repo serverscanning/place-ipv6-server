@@ -51,12 +51,14 @@ function censorCanvas(description, { title = "Unsafe content ahead!", descriptio
     censorText2.innerText = "If you're a minor, DO NOT click the button blow. The content could be nasty! This will disappear once the content is safe again.";
 
     const hideCensorButton = document.createElement("a");
+    hideCensorButton.classList.add("button");
     hideCensorButton.innerText = "Show anyway";
 
     const hideCensorForeverContainer = document.createElement("div");
+    hideCensorForeverContainer.id = "censor-hide-forever";
     const hideCensorForeverCheckbox = document.createElement("input")
     hideCensorForeverCheckbox.type = "checkbox";
-    hideCensorForeverCheckbox.id = "hide-censor-forever-" + Math.floor(10000 * Math.random());
+    hideCensorForeverCheckbox.id = "censor-hide-forever-cb-" + Math.floor(10000 * Math.random());
     const hideCensorForeverLabel = document.createElement("label")
     hideCensorForeverLabel.innerText = "Don't show again";
     hideCensorForeverLabel.setAttribute("for", hideCensorForeverCheckbox.id);
