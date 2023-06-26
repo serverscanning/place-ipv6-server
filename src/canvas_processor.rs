@@ -83,6 +83,19 @@ pub fn run_canvas_processor(
     canvas_state.blocking_update_full_canvas(&canvas)?;
     let mut delta_canvas = DynamicImage::new_rgba8(CANVASW.into(), CANVASH.into());
 
+    let (nudity_image_sender, nudity_image_receiver) = crossbeam_channel::bounded(1);
+    if nudity_scan_interval > 0 {
+        // Start extra thread to check for nudity async (would lag the fps otherwise)
+        let canvas_state_clone = canvas_state.clone();
+        std::thread::Builder::new()
+            .name("Nudity-Checker".to_owned())
+            .spawn(move || {
+                if let Err(err) = run_nudity_checker(nudity_image_receiver, canvas_state_clone) {
+                    error!("Nudity-Checker crashed: {err:#}");
+                }
+            })?;
+    }
+
     info!("Started. Listening for Pixel updates to update and encode canvas...");
 
     let mut pending_update = false;
@@ -93,8 +106,7 @@ pub fn run_canvas_processor(
     let mut per_user_pps_last_cleaned = Instant::now();
 
     let mut nudity_interval_counter: u64 = 0;
-    let mut nudity_last_result_is_nude = false;
-    let mut nudity_changed_since_last_scan = false;
+    let mut nudity_image_changed_since_last_scan = false;
     for tick in crossbeam_channel::tick(update_interval) {
         let now = tick;
 
@@ -191,31 +203,18 @@ pub fn run_canvas_processor(
         }
 
         if pending_update {
-            nudity_changed_since_last_scan = true;
+            nudity_image_changed_since_last_scan = true;
         }
 
-        let do_nudity_scan = if nudity_scan_interval != 0 {
+        if nudity_scan_interval > 0 {
             nudity_interval_counter += 1;
             if nudity_interval_counter >= nudity_scan_interval as u64
-                && nudity_changed_since_last_scan
+                && nudity_image_changed_since_last_scan
             {
-                nudity_interval_counter = 0;
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-
-        if do_nudity_scan {
-            nudity_changed_since_last_scan = false;
-            let analysis = nude::scan(&canvas).analyse();
-            if analysis.nude != nudity_last_result_is_nude {
-                canvas_state.blocking_update_nudity_result(NudityResult {
-                    is_nude: analysis.nude,
-                });
-                nudity_last_result_is_nude = analysis.nude;
+                if let Ok(_) = nudity_image_sender.send(canvas.clone()) {
+                    nudity_interval_counter = 0;
+                    nudity_image_changed_since_last_scan = false;
+                }
             }
         }
 
@@ -228,5 +227,27 @@ pub fn run_canvas_processor(
             pending_update = false;
         }
     }
-    Ok(())
+    Err(color_eyre::eyre::eyre!(
+        "The canvas frame loop ended unexpectedly (it should never end)!"
+    ))
+}
+
+pub fn run_nudity_checker(
+    image_receiver: Receiver<DynamicImage>,
+    canvas_state: Arc<CanvasState>,
+) -> Result<()> {
+    let mut nudity_last_result_is_nude = false;
+
+    while let Ok(image) = image_receiver.recv() {
+        let analysis = nude::scan(&image).analyse();
+        if analysis.nude != nudity_last_result_is_nude {
+            canvas_state.blocking_update_nudity_result(NudityResult {
+                is_nude: analysis.nude,
+            });
+            nudity_last_result_is_nude = analysis.nude;
+        }
+    }
+    Err(color_eyre::eyre::eyre!(
+        "The nudity checker failed to get an image!"
+    ))
 }
