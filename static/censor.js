@@ -31,57 +31,26 @@ function censorCanvas(description, { title = "Unsafe content ahead!", descriptio
     }
 
     const censorWrapperContainerEl = document.createElement("div");
+    censorWrapperContainerEl.id = "censor";
     const censorContainerEl = document.createElement("div");
 
     canvasEl.parentElement.insertBefore(censorWrapperContainerEl, canvasEl);
-    censorState.censorEl = censorWrapperContainerEl;
-    censorWrapperContainerEl.style.position = "absolute";
-    censorWrapperContainerEl.style.backdropFilter = "blur(35px)";
-
-    censorContainerEl.style.padding = "5px";
-    censorContainerEl.style.width = "100%";
-    censorContainerEl.style.height = "100%";
-    censorContainerEl.style.boxSizing = "border-box";
     censorWrapperContainerEl.appendChild(censorContainerEl);
-
-    // Align children
-    censorContainerEl.style.display = "flex";
-    censorContainerEl.style.flexDirection = "column";
-    censorContainerEl.style.justifyContent = "center";
-    censorContainerEl.style.alignItems = "center";
-    // Default text styles
-    censorContainerEl.style.color = "white";
-    censorContainerEl.style.textShadow = "1px 1px 0px black";
+    censorState.censorEl = censorWrapperContainerEl;
 
     const censorTitle = document.createElement("h1");
     censorTitle.innerText = title;
-    censorTitle.style.color = "red";
-    censorTitle.style.textShadow = "1px 1px 0px black";
 
     const censorText1 = document.createElement("p");
     if (descriptionIsHtml)
         censorText1.innerHTML = description;
     else
         censorText1.innerText = description;
-    censorText1.style.color = "white";
-    censorText1.style.textShadow = "1px 1px 0px black";
 
     const censorText2 = document.createElement("p");
     censorText2.innerText = "If you're a minor, DO NOT click the button blow. The content could be nasty! This will disappear once the content is safe again.";
-    censorText2.style.color = "white";
-    censorText2.style.textShadow = "1px 1px 0px black";
 
     const hideCensorButton = document.createElement("a");
-    hideCensorButton.style.boxShadow = "1px 1px 0px black";
-    hideCensorButton.style.border = "1px solid white";
-    hideCensorButton.style.borderRadius = "5px";
-    hideCensorButton.style.padding = "0 3px";
-    hideCensorButton.style.color = "white";
-    hideCensorButton.style.backgroundColor = "rgba(255, 255, 255, 0.25)";
-    hideCensorButton.style.width = "fit-content";
-    hideCensorButton.style.margin = "0 auto";
-    hideCensorButton.style.marginTop = "24px";
-    hideCensorButton.style.cursor = "pointer";
     hideCensorButton.innerText = "Show anyway";
 
     const hideCensorForeverContainer = document.createElement("div");
@@ -92,7 +61,6 @@ function censorCanvas(description, { title = "Unsafe content ahead!", descriptio
     const hideCensorForeverLabel = document.createElement("label")
     hideCensorForeverLabel.innerText = "Don't show again";
     hideCensorForeverLabel.setAttribute("for", hideCensorForeverCheckbox.id);
-    hideCensorForeverLabel.style.fontSize = "10pt";
     hideCensorForeverContainer.appendChild(hideCensorForeverCheckbox);
     hideCensorForeverContainer.appendChild(hideCensorForeverLabel);
 
