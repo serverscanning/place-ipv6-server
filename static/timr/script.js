@@ -20,18 +20,20 @@ async function getID() {
 function canvasXY() {
     const canvasEl = document.getElementById('canvas');
     canvasEl.addEventListener('mousemove', (e) => {
+        x = Math.round(e.offsetX * e.target.width / e.target.clientWidth);
+        y = Math.round(e.offsetY * e.target.height / e.target.clientHeight);
         document.getElementById('ipv6-size').innerText = '1';
-        document.getElementById('ipv6-coords-x').innerText = e.offsetX.toString(16).padStart(3,'0');
-        document.getElementById('ipv6-coords-y').innerText = e.offsetY.toString(16);
-        pixel = document.getElementById('canvas').getContext('2d').getImageData(e.offsetX, e.offsetY, 1, 1).data;
+        document.getElementById('ipv6-coords-x').innerText = x.toString(16).padStart(3,'0');
+        document.getElementById('ipv6-coords-y').innerText = y.toString(16);
+        pixel = document.getElementById('canvas').getContext('2d').getImageData(x, y, 1, 1).data;
         document.getElementById('ipv6-colors-red').innerText = pixel[0].toString(16);
         document.getElementById('ipv6-colors-green').innerText = pixel[1].toString(16);
         document.getElementById('ipv6-colors-blue').innerText = pixel[2].toString(16).padStart(2,'0');
         document.getElementById('canvas').setAttribute( 'title', 'Canvas: ' +
-		e.offsetX + 'x' + e.offsetY + ' #' +
-	        pixel[0].toString(16).padStart(2,'0') +
-	        pixel[1].toString(16).padStart(2,'0') +
-	        pixel[2].toString(16).padStart(2,'0'));
+                x + 'x' + y + ' #' +
+                pixel[0].toString(16).padStart(2,'0') +
+                pixel[1].toString(16).padStart(2,'0') +
+                pixel[2].toString(16).padStart(2,'0'));
     });
     canvasEl.addEventListener('mouseout', (e) => {
         document.getElementById('canvas').setAttribute( 'title', 'Canvas');
