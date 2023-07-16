@@ -48,7 +48,7 @@ function censorCanvas(description, { title = "Unsafe content ahead!", descriptio
         censorText1.innerText = description;
 
     const censorText2 = document.createElement("p");
-    censorText2.innerText = "If you're a minor, DO NOT click the button blow. The content could be nasty! This will disappear once the content is safe again.";
+    censorText2.innerText = "If you're a minor, DO NOT click the button below. The content could be nasty! This will disappear once the content is safe again.";
 
     const hideCensorButton = document.createElement("a");
     hideCensorButton.classList.add("button");
