@@ -41,7 +41,7 @@ This server is currently hosted at this address: <http://[2a01:4f8:c012:f8e6::1]
 Not everyone has native IPv6 support at home though sadly. So there are a number of proxies that show the site (mostly using Cloudflares webproxy):
 
 - <https://ek98.casper.wf> (hosted by someone taking part in the old version of ziad87)
-- <https://v6.ssi.pet/> (hosted by a member of the SSI discord)
+- <https://v6.ssi.fyi/> (hosted by a member of the SSI discord)
 - <https://ssi.place> (hosted by me, EnderKill98)
 
 (I've kept the owners vague here just to be sure. Feel free to DM me and I'll add any full reference as you like).
