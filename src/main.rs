@@ -205,14 +205,14 @@ enum MyUserIdResponse {
     Error {
         error: String,
     },
-    #[cfg_attr(not(feature = "my_feature"), allow(unused))]
+    #[cfg_attr(not(feature = "per_user_pps"), allow(unused))]
     ErrorWithIp {
         ip: Ipv6Addr,
         error: String,
     },
 }
 
-#[cfg_attr(not(feature = "my_feature"), allow(unused_variables))]
+#[cfg_attr(not(feature = "per_user_pps"), allow(unused_variables))]
 async fn get_my_user_id(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
