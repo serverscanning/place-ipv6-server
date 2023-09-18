@@ -231,12 +231,20 @@ async fn get_my_user_id(
             IpAddr::V6(ipv6_addr) => Some(ipv6_addr.clone()),
         };
         if let Some(user_ip) = user_ip {
-            let mut pps_users = per_user_pps::PPS_USERS.lock().unwrap();
-            let maybe_user_info = per_user_pps::find_user_info_data(&mut pps_users, user_ip);
-            if let Some(user_info) = maybe_user_info {
+            let mut maybe_user_id = None;
+            if let Ok(ref mut pps_users) = per_user_pps::PPS_USERS.lock() {
+                let maybe_user_info = per_user_pps::find_user_info_data(pps_users, user_ip);
+                if let Some(user_info) = maybe_user_info {
+                    maybe_user_id = Some(user_info.get_user_id().id);
+                }
+            } else {
+                warn!("Failed to lock PPS_USERS! Will simply not return user id for now.");
+            }
+
+            if let Some(user_id) = maybe_user_id {
                 Json(MyUserIdResponse::Success {
                     ip: user_ip,
-                    user_id: user_info.get_user_id().id,
+                    user_id,
                 })
             } else {
                 Json(MyUserIdResponse::ErrorWithIp { ip: user_ip, error: String::from("Didn't find any user id for your ip. Either you never pinged this server or it was too long ago.") })
